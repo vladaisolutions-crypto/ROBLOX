@@ -11,7 +11,14 @@ local EventService = require(script.Parent.EventService)
 
 local DecorService = {}
 
-local function piece(parent: Instance, size: Vector3, cframe: CFrame, color: Color3, material: Enum.Material?, ball: boolean?): Part
+local function piece(
+	parent: Instance,
+	size: Vector3,
+	cframe: CFrame,
+	color: Color3,
+	material: Enum.Material?,
+	ball: boolean?
+): Part
 	local part = Instance.new("Part")
 	part.Anchored = true
 	part.CanCollide = false
@@ -41,9 +48,21 @@ local function pumpkin(parent: Instance, position: Vector3, facing: Vector3, sca
 	piece(model, Vector3.new(0.4, 0.8, 0.4) * scale, base * CFrame.new(0, 1.7 * scale, 0), Color3.fromRGB(90, 120, 40))
 	local glow = Color3.fromRGB(255, 220, 80)
 	for _, side in { -1, 1 } do
-		piece(model, Vector3.new(0.6, 0.6, 0.2) * scale, base * CFrame.new(side * 0.7 * scale, 0.35 * scale, -1.6 * scale), glow, Enum.Material.Neon)
+		piece(
+			model,
+			Vector3.new(0.6, 0.6, 0.2) * scale,
+			base * CFrame.new(side * 0.7 * scale, 0.35 * scale, -1.6 * scale),
+			glow,
+			Enum.Material.Neon
+		)
 	end
-	piece(model, Vector3.new(1.6, 0.35, 0.2) * scale, base * CFrame.new(0, -0.45 * scale, -1.6 * scale), glow, Enum.Material.Neon)
+	piece(
+		model,
+		Vector3.new(1.6, 0.35, 0.2) * scale,
+		base * CFrame.new(0, -0.45 * scale, -1.6 * scale),
+		glow,
+		Enum.Material.Neon
+	)
 	local light = Instance.new("PointLight")
 	light.Color = Color3.fromRGB(255, 150, 50)
 	light.Range = 12

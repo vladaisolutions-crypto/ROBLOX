@@ -63,7 +63,14 @@ function Kit.Label(parent: Instance, text: string, size: UDim2, position: UDim2?
 	return label
 end
 
-function Kit.Button(parent: Instance, text: string, size: UDim2, position: UDim2?, color: Color3?, onClick: (() -> ())?): TextButton
+function Kit.Button(
+	parent: Instance,
+	text: string,
+	size: UDim2,
+	position: UDim2?,
+	color: Color3?,
+	onClick: (() -> ())?
+): TextButton
 	local button = Instance.new("TextButton")
 	button.Size = size
 	button.Position = position or UDim2.new()
@@ -154,7 +161,8 @@ function Kit.Panel(screen: ScreenGui, title: string, color: Color3?): Panel
 		frame.Visible = true
 		Kit.Pop(frame)
 	end
-	local closeButton = Kit.Button(header, "X", UDim2.fromScale(0.07, 0.8), UDim2.fromScale(0.92, 0.1), Kit.Colors.Red, close)
+	local closeButton =
+		Kit.Button(header, "X", UDim2.fromScale(0.07, 0.8), UDim2.fromScale(0.92, 0.1), Kit.Colors.Red, close)
 	local closeRatio = Instance.new("UIAspectRatioConstraint")
 	closeRatio.Parent = closeButton
 

@@ -98,7 +98,11 @@ local function finish(thief: Player, delivered: boolean, reason: string?)
 				TelemetryService.Onboard(thief, TelemetryService.Onboarding.FirstSteal)
 				TelemetryService.Custom(thief, "Steal", SlimeInfo.Price(slotData.Id, slotData.Mutation))
 				NetService.Notify(thief, "😈 You stole " .. name .. "!", "Good")
-				NetService.Notify(owner, "💢 " .. thief.DisplayName .. " stole your " .. name .. "! Steal it back!", "Bad")
+				NetService.Notify(
+					owner,
+					"💢 " .. thief.DisplayName .. " stole your " .. name .. "! Steal it back!",
+					"Bad"
+				)
 			else
 				-- Thief's base filled up during the run: give it back.
 				EconomyService.AddSlime(owner, slotData.Id, slotData.Mutation, "Returned", carry.Slot)
@@ -253,7 +257,8 @@ function StealService.Bonk(attacker: Player, golden: boolean)
 			if distance <= range and inFront then
 				local direction = Vector3.new(offset.X, 0, offset.Z)
 				direction = if direction.Magnitude > 0.01 then direction.Unit else attackerRoot.CFrame.LookVector
-				Remotes.Get("Knockback"):FireClient(target, direction * force + Vector3.new(0, force * 0.45, 0), Economy.BonkStunSeconds)
+				Remotes.Get("Knockback")
+					:FireClient(target, direction * force + Vector3.new(0, force * 0.45, 0), Economy.BonkStunSeconds)
 				if carries[target] then
 					finish(target, false, "💥 " .. attacker.DisplayName .. " bonked you! You dropped the slime.")
 					NetService.Notify(attacker, "💥 You made " .. target.DisplayName .. " drop it!", "Good")

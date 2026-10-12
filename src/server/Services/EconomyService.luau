@@ -202,20 +202,34 @@ local function discover(player: Player, data: PlayerData, slimeId: string, mutat
 		NetService.SendIndex(player, data.Index)
 		if isNewSlime then
 			local def = Slimes.ById[slimeId]
-			NetService.Notify(player, "📖 New slime discovered: " .. (if def then def.Name else slimeId) .. "! +2% cash forever", "Good")
+			NetService.Notify(
+				player,
+				"📖 New slime discovered: " .. (if def then def.Name else slimeId) .. "! +2% cash forever",
+				"Good"
+			)
 		end
 	end
 end
 
 -- Puts a slime into the player's first free slot (or `preferredSlot` if
 -- free). Returns the slot data, or nil if the base is full.
-function EconomyService.AddSlime(player: Player, slimeId: string, mutation: string, source: string, preferredSlot: number?): SlotData?
+function EconomyService.AddSlime(
+	player: Player,
+	slimeId: string,
+	mutation: string,
+	source: string,
+	preferredSlot: number?
+): SlotData?
 	local data = DataService.Get(player)
 	if not data or not Slimes.ById[slimeId] then
 		return nil
 	end
 	local slot = EconomyService.FreeSlot(player)
-	if preferredSlot and preferredSlot <= EconomyService.MaxSlots(player) and not EconomyService.GetSlot(player, preferredSlot) then
+	if
+		preferredSlot
+		and preferredSlot <= EconomyService.MaxSlots(player)
+		and not EconomyService.GetSlot(player, preferredSlot)
+	then
 		slot = preferredSlot
 	end
 	if not slot then
@@ -268,7 +282,11 @@ function EconomyService.Sell(player: Player, slot: number): boolean
 	EconomyService.RemoveSlime(player, slot)
 	local refund = SlimeInfo.Price(slotData.Id, slotData.Mutation) * Economy.SellRefund
 	EconomyService.AddCash(player, refund, "Sell", slotData.Id)
-	NetService.Notify(player, "Sold " .. SlimeInfo.DisplayName(slotData.Id, slotData.Mutation) .. " for " .. Format.Cash(refund), "Money")
+	NetService.Notify(
+		player,
+		"Sold " .. SlimeInfo.DisplayName(slotData.Id, slotData.Mutation) .. " for " .. Format.Cash(refund),
+		"Money"
+	)
 	EconomyService.PushState(player)
 	return true
 end
@@ -289,7 +307,10 @@ function EconomyService.Rebirth(player: Player): boolean
 	if data.Rebirths == 1 then
 		TelemetryService.Onboard(player, TelemetryService.Onboarding.FirstRebirth)
 	end
-	NetService.Announce("✨ " .. player.DisplayName .. " reached Rebirth " .. data.Rebirths .. "! ✨", Color3.fromRGB(255, 220, 120))
+	NetService.Announce(
+		"✨ " .. player.DisplayName .. " reached Rebirth " .. data.Rebirths .. "! ✨",
+		Color3.fromRGB(255, 220, 120)
+	)
 	EconomyService.SlotsChanged:Fire(player)
 	EconomyService.Rebirthed:Fire(player, data.Rebirths)
 	EconomyService.PushState(player)
@@ -330,7 +351,13 @@ local function refreshFriends()
 			if count ~= state.FriendsInServer then
 				state.FriendsInServer = count
 				if count > 0 then
-					NetService.Notify(player, "👥 Friend boost: +" .. math.floor(math.min(count * Economy.FriendBoostPerFriend, Economy.FriendBoostMax) * 100) .. "% cash!", "Good")
+					NetService.Notify(
+						player,
+						"👥 Friend boost: +"
+							.. math.floor(math.min(count * Economy.FriendBoostPerFriend, Economy.FriendBoostMax) * 100)
+							.. "% cash!",
+						"Good"
+					)
 				end
 			end
 		end

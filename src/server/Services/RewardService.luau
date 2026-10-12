@@ -69,7 +69,8 @@ local function claimDaily(player: Player)
 	local streak = nextStreak(data)
 	data.Daily.LastDay = today()
 	data.Daily.Streak = streak
-	local amount = EconomyService.IncomeMinutes(player, Events.DailyIncomeMinutes[streak], Events.DailyMinimumCash[streak])
+	local amount =
+		EconomyService.IncomeMinutes(player, Events.DailyIncomeMinutes[streak], Events.DailyMinimumCash[streak])
 	EconomyService.AddCash(player, amount, "Daily", "Day" .. streak)
 	NetService.Notify(player, "📅 Day " .. streak .. " reward: " .. Format.Cash(amount) .. "!", "Money")
 	if streak == 7 then

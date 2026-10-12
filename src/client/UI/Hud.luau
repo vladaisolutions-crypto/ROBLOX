@@ -36,11 +36,19 @@ function Hud.Create(screen: ScreenGui, menus: Menus)
 	-- Cash
 	local cashFrame = Kit.Frame(screen, UDim2.fromScale(0.22, 0.085), UDim2.fromScale(0.39, 0.015), Kit.Colors.Panel)
 	Kit.Stroke(cashFrame, 3)
-	local cashLabel = Kit.Label(cashFrame, "$0", UDim2.fromScale(0.94, 0.62), UDim2.fromScale(0.03, 0.04), Kit.Colors.Gold)
-	local incomeLabel = Kit.Label(cashFrame, "+$0/s", UDim2.fromScale(0.94, 0.32), UDim2.fromScale(0.03, 0.64), Color3.fromRGB(140, 255, 140))
+	local cashLabel =
+		Kit.Label(cashFrame, "$0", UDim2.fromScale(0.94, 0.62), UDim2.fromScale(0.03, 0.04), Kit.Colors.Gold)
+	local incomeLabel = Kit.Label(
+		cashFrame,
+		"+$0/s",
+		UDim2.fromScale(0.94, 0.32),
+		UDim2.fromScale(0.03, 0.64),
+		Color3.fromRGB(140, 255, 140)
+	)
 
 	-- Event banner under the cash
-	local banner = Kit.Label(screen, "", UDim2.fromScale(0.4, 0.035), UDim2.fromScale(0.3, 0.105), Color3.fromRGB(150, 230, 255))
+	local banner =
+		Kit.Label(screen, "", UDim2.fromScale(0.4, 0.035), UDim2.fromScale(0.3, 0.105), Color3.fromRGB(150, 230, 255))
 
 	-- Left menu buttons
 	local left = Instance.new("Frame")
@@ -86,24 +94,38 @@ function Hud.Create(screen: ScreenGui, menus: Menus)
 	dailyDot = dot
 
 	-- Lock button (bottom centre, above the backpack hotbar)
-	local lockButton = Kit.Button(screen, "🔒 LOCK BASE", UDim2.fromScale(0.2, 0.07), UDim2.fromScale(0.4, 0.75), Kit.Colors.Red, function()
-		local readyAt = Store.Get("LockReadyAt", 0)
-		local endsAt = Store.Get("LockEndsAt", 0)
-		local t = now()
-		if t >= endsAt and t < readyAt then
-			local product = Monetization.ProductByKey.InstantLock
-			if product and product.Id ~= 0 then
-				MarketplaceService:PromptProductPurchase(player, product.Id)
-				return
+	local lockButton = Kit.Button(
+		screen,
+		"🔒 LOCK BASE",
+		UDim2.fromScale(0.2, 0.07),
+		UDim2.fromScale(0.4, 0.75),
+		Kit.Colors.Red,
+		function()
+			local readyAt = Store.Get("LockReadyAt", 0)
+			local endsAt = Store.Get("LockEndsAt", 0)
+			local t = now()
+			if t >= endsAt and t < readyAt then
+				local product = Monetization.ProductByKey.InstantLock
+				if product and product.Id ~= 0 then
+					MarketplaceService:PromptProductPurchase(player, product.Id)
+					return
+				end
 			end
+			Store.Action("Lock")
 		end
-		Store.Action("Lock")
-	end)
+	)
 
 	-- Playtime gift (right side)
-	local giftButton = Kit.Button(screen, "🎁", UDim2.fromScale(0.09, 0.08), UDim2.fromScale(0.9, 0.3), Kit.Colors.Purple, function()
-		Store.Action("ClaimGift")
-	end)
+	local giftButton = Kit.Button(
+		screen,
+		"🎁",
+		UDim2.fromScale(0.09, 0.08),
+		UDim2.fromScale(0.9, 0.3),
+		Kit.Colors.Purple,
+		function()
+			Store.Action("ClaimGift")
+		end
+	)
 
 	-- Toasts (right, under gift) and announcements (centre-top)
 	local toasts = Instance.new("Frame")
@@ -161,8 +183,15 @@ function Hud.Create(screen: ScreenGui, menus: Menus)
 	-- Cash "+$X" popups when cash jumps (collecting, rewards)
 	local lastCash: number? = nil
 	local function cashPopup(amount: number)
-		local pop = Kit.Label(screen, "+" .. Format.Cash(amount), UDim2.fromScale(0.16, 0.04), UDim2.fromScale(0.42, 0.1), Kit.Colors.Gold)
-		TweenService:Create(pop, TweenInfo.new(1), { Position = UDim2.fromScale(0.42, 0.06), TextTransparency = 1 }):Play()
+		local pop = Kit.Label(
+			screen,
+			"+" .. Format.Cash(amount),
+			UDim2.fromScale(0.16, 0.04),
+			UDim2.fromScale(0.42, 0.1),
+			Kit.Colors.Gold
+		)
+		TweenService:Create(pop, TweenInfo.new(1), { Position = UDim2.fromScale(0.42, 0.06), TextTransparency = 1 })
+			:Play()
 		task.delay(1, function()
 			pop:Destroy()
 		end)
@@ -172,7 +201,10 @@ function Hud.Create(screen: ScreenGui, menus: Menus)
 		local cash = Store.Get("Cash", 0)
 		local income = Store.Get("Income", 0)
 		cashLabel.Text = Format.Cash(cash)
-		incomeLabel.Text = "+" .. Format.Cash(income) .. "/s  ·  x" .. string.format("%.2f", Store.Get("Multiplier", 1)):gsub("%.?0+$", "")
+		incomeLabel.Text = "+"
+			.. Format.Cash(income)
+			.. "/s  ·  x"
+			.. string.format("%.2f", Store.Get("Multiplier", 1)):gsub("%.?0+$", "")
 		if lastCash and cash - lastCash > math.max(income * 1.5, 1) then
 			cashPopup(cash - lastCash)
 			Kit.Pop(cashFrame)
@@ -225,7 +257,10 @@ function Hud.Create(screen: ScreenGui, menus: Menus)
 			local events = Store.Events
 			local parts = {}
 			if events.LuckEndsAt and t < events.LuckEndsAt then
-				table.insert(parts, "🍀 Server Luck x" .. tostring(events.LuckMultiplier) .. " " .. Format.Time(events.LuckEndsAt - t))
+				table.insert(
+					parts,
+					"🍀 Server Luck x" .. tostring(events.LuckMultiplier) .. " " .. Format.Time(events.LuckEndsAt - t)
+				)
 			end
 			if events.RainEndsAt and events.NextRainAt then
 				if events.RainActive and t < events.RainEndsAt then

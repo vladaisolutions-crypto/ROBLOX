@@ -12,8 +12,22 @@ export type Rarity = {
 }
 
 local Rarities: { Rarity } = {
-	{ Name = "Common", Order = 1, Weight = 600, Color = Color3.fromRGB(200, 200, 200), Lucky = false, Announce = false },
-	{ Name = "Uncommon", Order = 2, Weight = 260, Color = Color3.fromRGB(95, 225, 95), Lucky = false, Announce = false },
+	{
+		Name = "Common",
+		Order = 1,
+		Weight = 600,
+		Color = Color3.fromRGB(200, 200, 200),
+		Lucky = false,
+		Announce = false,
+	},
+	{
+		Name = "Uncommon",
+		Order = 2,
+		Weight = 260,
+		Color = Color3.fromRGB(95, 225, 95),
+		Lucky = false,
+		Announce = false,
+	},
 	{ Name = "Rare", Order = 3, Weight = 100, Color = Color3.fromRGB(70, 155, 255), Lucky = true, Announce = false },
 	{ Name = "Epic", Order = 4, Weight = 30, Color = Color3.fromRGB(185, 85, 255), Lucky = true, Announce = false },
 	{ Name = "Legendary", Order = 5, Weight = 8, Color = Color3.fromRGB(255, 195, 40), Lucky = true, Announce = true },

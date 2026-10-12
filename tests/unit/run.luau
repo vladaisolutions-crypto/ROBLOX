@@ -28,7 +28,15 @@ local function test(name: string, fn: () -> ())
 end
 local function eq(actual: any, expected: any, label: string?)
 	if actual ~= expected then
-		error(string.format("%sexpected %s, got %s", if label then label .. ": " else "", tostring(expected), tostring(actual)), 2)
+		error(
+			string.format(
+				"%sexpected %s, got %s",
+				if label then label .. ": " else "",
+				tostring(expected),
+				tostring(actual)
+			),
+			2
+		)
 	end
 end
 
@@ -73,9 +81,13 @@ test("Weighted.Pick distribution", function()
 	end
 	local share = counts.a / 20000
 	assert(share > 0.23 and share < 0.27, "expected ~25% for a, got " .. share)
-	eq(Weighted.Pick({ { w = 0 } }, function(e)
-		return e.w
-	end), nil, "all-zero weights")
+	eq(
+		Weighted.Pick({ { w = 0 } }, function(e)
+			return e.w
+		end),
+		nil,
+		"all-zero weights"
+	)
 end)
 
 test("every rarity has standard slimes", function()
@@ -91,7 +103,16 @@ test("every rarity has standard slimes", function()
 end)
 
 test("slimes reference real rarities, hats and mutation-safe values", function()
-	local hats = { Leaf = true, Antenna = true, Wizard = true, WitchHat = true, Crown = true, Halo = true, Horns = true, Pumpkin = true }
+	local hats = {
+		Leaf = true,
+		Antenna = true,
+		Wizard = true,
+		WitchHat = true,
+		Crown = true,
+		Halo = true,
+		Horns = true,
+		Pumpkin = true,
+	}
 	for _, def in Slimes.List do
 		assert(Rarities.ByName[def.Rarity], def.Id .. " has unknown rarity " .. def.Rarity)
 		assert(def.Hat == nil or hats[def.Hat], def.Id .. " has unknown hat " .. tostring(def.Hat))
@@ -194,7 +215,11 @@ test("SlimeInfo values", function()
 end)
 
 test("DataTemplate.Reconcile fills new fields and keeps old ones", function()
-	local data = DataTemplate.Reconcile({ Cash = 5, Stats = { Steals = 2 }, Slots = { { Slot = 1, Id = "goo", Mutation = "", Stored = 0 } } })
+	local data = DataTemplate.Reconcile({
+		Cash = 5,
+		Stats = { Steals = 2 },
+		Slots = { { Slot = 1, Id = "goo", Mutation = "", Stored = 0 } },
+	})
 	eq(data.Cash, 5)
 	eq(data.Stats.Steals, 2)
 	eq(data.Stats.PlaySeconds, 0)

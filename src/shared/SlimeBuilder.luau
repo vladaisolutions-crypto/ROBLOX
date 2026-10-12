@@ -63,11 +63,30 @@ local function addPart(
 end
 
 -- Vertical cylinder centred at `y` with height h and diameter d.
-local function disc(model: Model, root: BasePart, name: string, x: number, y: number, z: number, h: number, d: number, color: Color3, material: Enum.Material?): Part
+local function disc(
+	model: Model,
+	root: BasePart,
+	name: string,
+	x: number,
+	y: number,
+	z: number,
+	h: number,
+	d: number,
+	color: Color3,
+	material: Enum.Material?
+): Part
 	return addPart(model, root, name, Vector3.new(h, d, d), CFrame.new(x, y, z) * VERTICAL, color, material, "Cylinder")
 end
 
-local function addCone(model: Model, root: BasePart, baseY: number, s: number, color: Color3, brim: number, height: number)
+local function addCone(
+	model: Model,
+	root: BasePart,
+	baseY: number,
+	s: number,
+	color: Color3,
+	brim: number,
+	height: number
+)
 	disc(model, root, "Brim", 0, baseY, 0, 0.15 * s, brim * s, color)
 	local steps = 5
 	for i = 1, steps do
@@ -80,13 +99,39 @@ end
 
 local function addHat(model: Model, root: BasePart, hat: string, s: number, top: number)
 	if hat == "Leaf" then
-		addPart(model, root, "Leaf", Vector3.new(0.15, 1.1, 0.7) * s, CFrame.new(0.15 * s, top + 0.35 * s, 0) * CFrame.Angles(0, 0, math.rad(-25)), Color3.fromRGB(60, 170, 60), Enum.Material.Grass)
+		addPart(
+			model,
+			root,
+			"Leaf",
+			Vector3.new(0.15, 1.1, 0.7) * s,
+			CFrame.new(0.15 * s, top + 0.35 * s, 0) * CFrame.Angles(0, 0, math.rad(-25)),
+			Color3.fromRGB(60, 170, 60),
+			Enum.Material.Grass
+		)
 	elseif hat == "Antenna" then
 		disc(model, root, "Stalk", 0, top + 0.45 * s, 0, 1 * s, 0.14 * s, Color3.fromRGB(40, 40, 40))
-		addPart(model, root, "Bulb", Vector3.one * 0.5 * s, CFrame.new(0, top + 1.05 * s, 0), Color3.fromRGB(255, 240, 80), Enum.Material.Neon, "Ball")
+		addPart(
+			model,
+			root,
+			"Bulb",
+			Vector3.one * 0.5 * s,
+			CFrame.new(0, top + 1.05 * s, 0),
+			Color3.fromRGB(255, 240, 80),
+			Enum.Material.Neon,
+			"Ball"
+		)
 	elseif hat == "Wizard" then
 		addCone(model, root, top - 0.05 * s, s, Color3.fromRGB(45, 35, 140), 2.4, 1.8)
-		addPart(model, root, "Star", Vector3.one * 0.35 * s, CFrame.new(0, top + 0.6 * s, -0.55 * s), Color3.fromRGB(255, 230, 90), Enum.Material.Neon, "Ball")
+		addPart(
+			model,
+			root,
+			"Star",
+			Vector3.one * 0.35 * s,
+			CFrame.new(0, top + 0.6 * s, -0.55 * s),
+			Color3.fromRGB(255, 230, 90),
+			Enum.Material.Neon,
+			"Ball"
+		)
 	elseif hat == "WitchHat" then
 		addCone(model, root, top - 0.05 * s, s, Color3.fromRGB(25, 20, 30), 2.6, 2.1)
 		disc(model, root, "Band", 0, top + 0.25 * s, 0, 0.18 * s, 1.55 * s, Color3.fromRGB(150, 60, 220))
@@ -96,24 +141,64 @@ local function addHat(model: Model, root: BasePart, hat: string, s: number, top:
 		for i = 1, 5 do
 			local angle = (i / 5) * math.pi * 2
 			local x, z = math.cos(angle) * 0.75 * s, math.sin(angle) * 0.75 * s
-			addPart(model, root, "Spike", Vector3.new(0.3, 0.55, 0.3) * s, CFrame.new(x, top + 0.55 * s, z), gold, Enum.Material.Foil)
+			addPart(
+				model,
+				root,
+				"Spike",
+				Vector3.new(0.3, 0.55, 0.3) * s,
+				CFrame.new(x, top + 0.55 * s, z),
+				gold,
+				Enum.Material.Foil
+			)
 		end
-		addPart(model, root, "Gem", Vector3.one * 0.32 * s, CFrame.new(0, top + 0.12 * s, -0.85 * s), Color3.fromRGB(255, 40, 70), Enum.Material.Neon, "Ball")
+		addPart(
+			model,
+			root,
+			"Gem",
+			Vector3.one * 0.32 * s,
+			CFrame.new(0, top + 0.12 * s, -0.85 * s),
+			Color3.fromRGB(255, 40, 70),
+			Enum.Material.Neon,
+			"Ball"
+		)
 	elseif hat == "Halo" then
 		for i = 1, 12 do
 			local angle = (i / 12) * math.pi * 2
 			local x, z = math.cos(angle) * 0.85 * s, math.sin(angle) * 0.85 * s
-			addPart(model, root, "Halo", Vector3.one * 0.28 * s, CFrame.new(x, top + 0.75 * s, z), Color3.fromRGB(255, 240, 120), Enum.Material.Neon, "Ball")
+			addPart(
+				model,
+				root,
+				"Halo",
+				Vector3.one * 0.28 * s,
+				CFrame.new(x, top + 0.75 * s, z),
+				Color3.fromRGB(255, 240, 120),
+				Enum.Material.Neon,
+				"Ball"
+			)
 		end
 	elseif hat == "Horns" then
 		for _, side in { -1, 1 } do
 			local base = CFrame.new(side * 0.65 * s, top - 0.05 * s, 0) * CFrame.Angles(0, 0, math.rad(-side * 20))
 			addPart(model, root, "Horn", Vector3.new(0.45, 0.6, 0.45) * s, base, Color3.fromRGB(240, 235, 220))
-			addPart(model, root, "HornTip", Vector3.new(0.25, 0.5, 0.25) * s, base * CFrame.new(0, 0.5 * s, 0) * CFrame.Angles(0, 0, math.rad(-side * 15)), Color3.fromRGB(240, 235, 220))
+			addPart(
+				model,
+				root,
+				"HornTip",
+				Vector3.new(0.25, 0.5, 0.25) * s,
+				base * CFrame.new(0, 0.5 * s, 0) * CFrame.Angles(0, 0, math.rad(-side * 15)),
+				Color3.fromRGB(240, 235, 220)
+			)
 		end
 	elseif hat == "Pumpkin" then
 		disc(model, root, "Stem", 0, top + 0.25 * s, 0, 0.6 * s, 0.32 * s, Color3.fromRGB(90, 120, 40))
-		addPart(model, root, "Leaf", Vector3.new(0.6, 0.1, 0.35) * s, CFrame.new(0.3 * s, top + 0.2 * s, 0) * CFrame.Angles(0, 0, math.rad(-20)), Color3.fromRGB(70, 160, 50))
+		addPart(
+			model,
+			root,
+			"Leaf",
+			Vector3.new(0.6, 0.1, 0.35) * s,
+			CFrame.new(0.3 * s, top + 0.2 * s, 0) * CFrame.Angles(0, 0, math.rad(-20)),
+			Color3.fromRGB(70, 160, 50)
+		)
 	end
 end
 
@@ -188,11 +273,38 @@ function SlimeBuilder.Build(slimeId: string, mutationId: string?, options: Build
 	-- Face (front is -Z)
 	local white, black = Color3.new(1, 1, 1), Color3.fromRGB(20, 20, 25)
 	for _, side in { -1, 1 } do
-		addPart(model, root, "Eye", Vector3.one * 0.6 * s, CFrame.new(side * 0.55 * s, 0.25 * s, -1.22 * s), white, nil, "Ball")
-		addPart(model, root, "Pupil", Vector3.one * 0.32 * s, CFrame.new(side * 0.55 * s, 0.22 * s, -1.47 * s), black, nil, "Ball")
+		addPart(
+			model,
+			root,
+			"Eye",
+			Vector3.one * 0.6 * s,
+			CFrame.new(side * 0.55 * s, 0.25 * s, -1.22 * s),
+			white,
+			nil,
+			"Ball"
+		)
+		addPart(
+			model,
+			root,
+			"Pupil",
+			Vector3.one * 0.32 * s,
+			CFrame.new(side * 0.55 * s, 0.22 * s, -1.47 * s),
+			black,
+			nil,
+			"Ball"
+		)
 	end
 	addPart(model, root, "Mouth", Vector3.new(0.55, 0.12, 0.12) * s, CFrame.new(0, -0.25 * s, -1.44 * s), black)
-	local shine = addPart(model, root, "Shine", Vector3.one * 0.45 * s, CFrame.new(-0.75 * s, 0.6 * s, -0.95 * s), white, Enum.Material.Neon, "Ball")
+	local shine = addPart(
+		model,
+		root,
+		"Shine",
+		Vector3.one * 0.45 * s,
+		CFrame.new(-0.75 * s, 0.6 * s, -0.95 * s),
+		white,
+		Enum.Material.Neon,
+		"Ball"
+	)
 	shine.Transparency = 0.35
 
 	if def.Hat then
@@ -217,7 +329,8 @@ function SlimeBuilder.Build(slimeId: string, mutationId: string?, options: Build
 	end
 	if (mutation and mutation.Id == "Haunted") or rarity.Name == "Secret" then
 		local particles = Instance.new("ParticleEmitter")
-		particles.Color = ColorSequence.new(if mutation and mutation.Id == "Haunted" then mutation.Color else rarity.Color)
+		particles.Color =
+			ColorSequence.new(if mutation and mutation.Id == "Haunted" then mutation.Color else rarity.Color)
 		particles.LightEmission = 1
 		particles.Rate = 6
 		particles.Lifetime = NumberRange.new(1, 2)
@@ -239,9 +352,21 @@ function SlimeBuilder.Build(slimeId: string, mutationId: string?, options: Build
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	layout.Parent = gui
-	makeLabel(gui, "Name", SlimeInfo.DisplayName(def.Id, mutationId), if mutation then mutation.Color else Color3.new(1, 1, 1), 1)
+	makeLabel(
+		gui,
+		"Name",
+		SlimeInfo.DisplayName(def.Id, mutationId),
+		if mutation then mutation.Color else Color3.new(1, 1, 1),
+		1
+	)
 	makeLabel(gui, "Rarity", def.Rarity, rarity.Color, 2)
-	makeLabel(gui, "Income", Format.Cash(SlimeInfo.Income(def.Id, mutationId)) .. "/s", Color3.fromRGB(120, 255, 120), 3)
+	makeLabel(
+		gui,
+		"Income",
+		Format.Cash(SlimeInfo.Income(def.Id, mutationId)) .. "/s",
+		Color3.fromRGB(120, 255, 120),
+		3
+	)
 	if options and options.PriceText then
 		makeLabel(gui, "Price", options.PriceText, Color3.fromRGB(255, 225, 90), 4)
 	end

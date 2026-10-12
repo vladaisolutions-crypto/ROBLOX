@@ -63,12 +63,14 @@ function PassService.Init()
 	Players.PlayerRemoving:Connect(function(player)
 		owned[player] = nil
 	end)
-	MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player: Player, passId: number, purchased: boolean)
-		local pass = Monetization.PassById[passId]
-		if purchased and pass then
-			grant(player, pass.Key)
+	MarketplaceService.PromptGamePassPurchaseFinished:Connect(
+		function(player: Player, passId: number, purchased: boolean)
+			local pass = Monetization.PassById[passId]
+			if purchased and pass then
+				grant(player, pass.Key)
+			end
 		end
-	end)
+	)
 end
 
 return PassService

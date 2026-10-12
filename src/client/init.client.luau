@@ -42,7 +42,8 @@ local menus: Hud.Menus = {
 Hud.Create(screen, menus)
 
 -- Sits above the lock button (0.75), which in turn sits above the backpack hotbar.
-local tutorialLabel = Kit.Label(screen, "", UDim2.fromScale(0.6, 0.05), UDim2.fromScale(0.2, 0.67), Color3.fromRGB(255, 240, 120))
+local tutorialLabel =
+	Kit.Label(screen, "", UDim2.fromScale(0.6, 0.05), UDim2.fromScale(0.2, 0.67), Color3.fromRGB(255, 240, 120))
 tutorialLabel.Visible = false
 
 Controllers.Start(tutorialLabel)

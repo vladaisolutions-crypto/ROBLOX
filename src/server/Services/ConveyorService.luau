@@ -177,7 +177,12 @@ local function recordPurchase(player: Player, slimeId: string, mutation: string,
 	local rarity = Rarities.ByName[def.Rarity]
 	if rarity.Announce then
 		NetService.Announce(
-			player.DisplayName .. " got a " .. string.upper(def.Rarity) .. " " .. SlimeInfo.DisplayName(slimeId, mutation) .. "!",
+			player.DisplayName
+				.. " got a "
+				.. string.upper(def.Rarity)
+				.. " "
+				.. SlimeInfo.DisplayName(slimeId, mutation)
+				.. "!",
 			rarity.Color
 		)
 	end
@@ -332,7 +337,10 @@ local function spawnSlime(forcedRarity: string?, startX: number?)
 
 	if rarity.Announce then
 		local prefix = if rarity.Name == "Secret" then "‼️ A SECRET" else "A " .. string.upper(rarity.Name)
-		NetService.Announce(prefix .. " " .. SlimeInfo.DisplayName(def.Id, mutation) .. " is on the belt!", rarity.Color)
+		NetService.Announce(
+			prefix .. " " .. SlimeInfo.DisplayName(def.Id, mutation) .. " is on the belt!",
+			rarity.Color
+		)
 	end
 end
 
@@ -391,7 +399,12 @@ end
 function ConveyorService.CheapestAffordable(cash: number): Model?
 	local best: BeltSlime? = nil
 	for _, entry in belt do
-		if not entry.Gone and not entry.ReservedBy and entry.Price <= cash and (best == nil or entry.Price < best.Price) then
+		if
+			not entry.Gone
+			and not entry.ReservedBy
+			and entry.Price <= cash
+			and (best == nil or entry.Price < best.Price)
+		then
 			best = entry
 		end
 	end
@@ -403,18 +416,20 @@ function ConveyorService.SpawnRarity(rarityName: string)
 end
 
 function ConveyorService.Init()
-	MarketplaceService.PromptProductPurchaseFinished:Connect(function(userId: number, productId: number, purchased: boolean)
-		local player = Players:GetPlayerByUserId(userId)
-		local product = Monetization.ProductById[productId]
-		if not player or not product or product.Kind ~= "BeltSlime" then
-			return
+	MarketplaceService.PromptProductPurchaseFinished:Connect(
+		function(userId: number, productId: number, purchased: boolean)
+			local player = Players:GetPlayerByUserId(userId)
+			local product = Monetization.ProductById[productId]
+			if not player or not product or product.Kind ~= "BeltSlime" then
+				return
+			end
+			local pending = pendingRobux[player]
+			if pending and not purchased then
+				pendingRobux[player] = nil
+				releaseHold(player, pending)
+			end
 		end
-		local pending = pendingRobux[player]
-		if pending and not purchased then
-			pendingRobux[player] = nil
-			releaseHold(player, pending)
-		end
-	end)
+	)
 	Players.PlayerRemoving:Connect(function(player)
 		local pending = pendingRobux[player]
 		if pending then

@@ -198,7 +198,13 @@ local function buildPlot(index: number, cframe: CFrame): Plot
 	})
 	-- Walls on three sides, entrance faces the belt (+Z local)
 	local wallColor = color:Lerp(Color3.new(0, 0, 0), 0.15)
-	part({ Name = "Wall", Size = Vector3.new(W, World.WallHeight, 1), CFrame = at(0, floorY + World.WallHeight / 2, -D / 2), Color = wallColor, Parent = model })
+	part({
+		Name = "Wall",
+		Size = Vector3.new(W, World.WallHeight, 1),
+		CFrame = at(0, floorY + World.WallHeight / 2, -D / 2),
+		Color = wallColor,
+		Parent = model,
+	})
 	for _, side in { -1, 1 } do
 		part({
 			Name = "Wall",
@@ -239,7 +245,8 @@ local function buildPlot(index: number, cframe: CFrame): Plot
 	})
 	local signGui = billboard(signPost, Vector3.zero, UDim2.fromOffset(360, 100), 250)
 	local ownerLabel = label(signGui, "Empty Base", color:Lerp(Color3.new(1, 1, 1), 0.3), UDim2.fromScale(1, 0.6))
-	local statusLabel = label(signGui, "", Color3.fromRGB(255, 90, 90), UDim2.fromScale(1, 0.4), UDim2.fromScale(0, 0.6))
+	local statusLabel =
+		label(signGui, "", Color3.fromRGB(255, 90, 90), UDim2.fromScale(1, 0.4), UDim2.fromScale(0, 0.6))
 
 	local lockPad = part({
 		Name = "LockPad",
@@ -298,7 +305,10 @@ local function buildPlot(index: number, cframe: CFrame): Plot
 	spawn.CanCollide = false
 	spawn.Transparency = 1
 	spawn.Size = Vector3.new(6, 1, 6)
-	spawn.CFrame = CFrame.lookAt(Vector3.new(spawnPosition.X, floorY + 0.5, spawnPosition.Z), Vector3.new(spawnPosition.X, floorY + 0.5, spawnPosition.Z) + facing)
+	spawn.CFrame = CFrame.lookAt(
+		Vector3.new(spawnPosition.X, floorY + 0.5, spawnPosition.Z),
+		Vector3.new(spawnPosition.X, floorY + 0.5, spawnPosition.Z) + facing
+	)
 	spawn.Neutral = true
 	spawn.Duration = 0
 	spawn.Parent = model
@@ -337,7 +347,14 @@ local function buildScenery()
 			{ Vector3.new(2, 60, World.MapSizeZ), Vector3.new(-halfX, 30, 0) },
 		}
 	do
-		part({ Name = "Boundary", Size = data[1], CFrame = CFrame.new(data[2]), Color = Color3.new(1, 1, 1), Transparency = 1, Parent = folder })
+		part({
+			Name = "Boundary",
+			Size = data[1],
+			CFrame = CFrame.new(data[2]),
+			Color = Color3.new(1, 1, 1),
+			Transparency = 1,
+			Parent = folder,
+		})
 	end
 
 	-- Trees along the edges

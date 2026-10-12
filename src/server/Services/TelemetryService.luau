@@ -42,7 +42,15 @@ function TelemetryService.Source(player: Player, amount: number, balance: number
 		return
 	end
 	pcall(function()
-		AnalyticsService:LogEconomyEvent(player, Enum.AnalyticsEconomyFlowType.Source, "Cash", amount, balance, transaction, sku)
+		AnalyticsService:LogEconomyEvent(
+			player,
+			Enum.AnalyticsEconomyFlowType.Source,
+			"Cash",
+			amount,
+			balance,
+			transaction,
+			sku
+		)
 	end)
 end
 
@@ -51,7 +59,15 @@ function TelemetryService.Sink(player: Player, amount: number, balance: number, 
 		return
 	end
 	pcall(function()
-		AnalyticsService:LogEconomyEvent(player, Enum.AnalyticsEconomyFlowType.Sink, "Cash", amount, balance, transaction, sku)
+		AnalyticsService:LogEconomyEvent(
+			player,
+			Enum.AnalyticsEconomyFlowType.Sink,
+			"Cash",
+			amount,
+			balance,
+			transaction,
+			sku
+		)
 	end)
 end
 

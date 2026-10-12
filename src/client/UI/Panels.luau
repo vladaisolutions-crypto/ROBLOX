@@ -49,9 +49,16 @@ local function robuxPrice(id: number, isPass: boolean, fallback: number): number
 		return cached
 	end
 	local ok, info = pcall(function()
-		return MarketplaceService:GetProductInfoAsync(id, if isPass then Enum.InfoType.GamePass else Enum.InfoType.Product)
+		return MarketplaceService:GetProductInfoAsync(
+			id,
+			if isPass then Enum.InfoType.GamePass else Enum.InfoType.Product
+		)
 	end)
-	local price = if ok and type(info) == "table" and type(info.PriceInRobux) == "number" then info.PriceInRobux else fallback
+	local price = if ok
+			and type(info) == "table"
+			and type(info.PriceInRobux) == "number"
+		then info.PriceInRobux
+		else fallback
 	priceCache[cacheKey] = price
 	return price
 end
@@ -66,7 +73,8 @@ function Panels.Shop(screen: ScreenGui): Kit.Panel
 		frame.LayoutOrder = order
 		Kit.Stroke(frame, 2, color)
 		Kit.Label(frame, icon .. " " .. name, UDim2.new(0.92, 0, 0, 30), UDim2.new(0.04, 0, 0, 6), color)
-		local desc = Kit.Label(frame, description, UDim2.new(0.92, 0, 0, 48), UDim2.new(0.04, 0, 0, 40), Kit.Colors.Muted)
+		local desc =
+			Kit.Label(frame, description, UDim2.new(0.92, 0, 0, 48), UDim2.new(0.04, 0, 0, 40), Kit.Colors.Muted)
 		desc.TextWrapped = true
 		return frame
 	end
@@ -75,11 +83,18 @@ function Panels.Shop(screen: ScreenGui): Kit.Panel
 	for _, pass in Monetization.Passes do
 		order += 1
 		local frame = card(order, pass.Icon, pass.Name, pass.Description, Kit.Colors.Gold)
-		local button = Kit.Button(frame, if pass.Id == 0 then "Coming soon" else "R$ " .. pass.SuggestedPrice, UDim2.new(0.8, 0, 0, 40), UDim2.new(0.1, 0, 1, -48), if pass.Id == 0 then Kit.Colors.Grey else Kit.Colors.Green, function()
-			if pass.Id ~= 0 and not Store.HasPass(pass.Key) then
-				MarketplaceService:PromptGamePassPurchase(player, pass.Id)
+		local button = Kit.Button(
+			frame,
+			if pass.Id == 0 then "Coming soon" else "R$ " .. pass.SuggestedPrice,
+			UDim2.new(0.8, 0, 0, 40),
+			UDim2.new(0.1, 0, 1, -48),
+			if pass.Id == 0 then Kit.Colors.Grey else Kit.Colors.Green,
+			function()
+				if pass.Id ~= 0 and not Store.HasPass(pass.Key) then
+					MarketplaceService:PromptGamePassPurchase(player, pass.Id)
+				end
 			end
-		end)
+		)
 		passButtons[pass.Key] = button
 		if pass.Id ~= 0 then
 			task.spawn(function()
@@ -94,11 +109,18 @@ function Panels.Shop(screen: ScreenGui): Kit.Panel
 		if product.Shop then
 			order += 1
 			local frame = card(order, product.Icon, product.Name, product.Description, Kit.Colors.Blue)
-			local button = Kit.Button(frame, if product.Id == 0 then "Coming soon" else "R$ " .. product.SuggestedPrice, UDim2.new(0.8, 0, 0, 40), UDim2.new(0.1, 0, 1, -48), if product.Id == 0 then Kit.Colors.Grey else Kit.Colors.Blue, function()
-				if product.Id ~= 0 then
-					MarketplaceService:PromptProductPurchase(player, product.Id)
+			local button = Kit.Button(
+				frame,
+				if product.Id == 0 then "Coming soon" else "R$ " .. product.SuggestedPrice,
+				UDim2.new(0.8, 0, 0, 40),
+				UDim2.new(0.1, 0, 1, -48),
+				if product.Id == 0 then Kit.Colors.Grey else Kit.Colors.Blue,
+				function()
+					if product.Id ~= 0 then
+						MarketplaceService:PromptProductPurchase(player, product.Id)
+					end
 				end
-			end)
+			)
 			if product.Id ~= 0 then
 				task.spawn(function()
 					button.Text = "R$ " .. robuxPrice(product.Id, false, product.SuggestedPrice)
@@ -149,7 +171,13 @@ function Panels.Index(screen: ScreenGui): Kit.Panel
 		local dot = Kit.Frame(frame, UDim2.fromOffset(38, 32), UDim2.new(0.5, -19, 0, 8), def.Color)
 		Kit.Corner(dot, 100)
 		local name = Kit.Label(frame, "???", UDim2.new(0.9, 0, 0, 22), UDim2.new(0.05, 0, 0, 44))
-		Kit.Label(frame, def.Rarity .. (if def.Event then " · " .. def.Event else ""), UDim2.new(0.9, 0, 0, 16), UDim2.new(0.05, 0, 0, 66), rarity.Color)
+		Kit.Label(
+			frame,
+			def.Rarity .. (if def.Event then " · " .. def.Event else ""),
+			UDim2.new(0.9, 0, 0, 16),
+			UDim2.new(0.05, 0, 0, 66),
+			rarity.Color
+		)
 		local mutations = Kit.Label(frame, "", UDim2.new(0.9, 0, 0, 16), UDim2.new(0.05, 0, 0, 86), Kit.Colors.Gold)
 		table.insert(cells, { Name = name, Dot = dot, Mutations = mutations, Def = def })
 	end
@@ -195,22 +223,37 @@ function Panels.Rebirth(screen: ScreenGui): Kit.Panel
 	local panel = Kit.Panel(screen, "✨ Rebirth", Kit.Colors.Purple)
 	local body = panel.Body
 	local title = Kit.Label(body, "", UDim2.new(1, 0, 0.12, 0), UDim2.fromScale(0, 0.02), Kit.Colors.Gold)
-	Kit.Label(body, "Rebirthing resets your cash but KEEPS your slimes.", UDim2.new(1, 0, 0.08, 0), UDim2.fromScale(0, 0.17), Kit.Colors.Muted)
+	Kit.Label(
+		body,
+		"Rebirthing resets your cash but KEEPS your slimes.",
+		UDim2.new(1, 0, 0.08, 0),
+		UDim2.fromScale(0, 0.17),
+		Kit.Colors.Muted
+	)
 	local rewards = Kit.Label(body, "", UDim2.new(1, 0, 0.1, 0), UDim2.fromScale(0, 0.3), Color3.fromRGB(150, 255, 150))
 	local barBack = Kit.Frame(body, UDim2.fromScale(0.8, 0.09), UDim2.fromScale(0.1, 0.48), Kit.Colors.Stroke)
 	local barFill = Kit.Frame(barBack, UDim2.fromScale(0, 1), nil, Kit.Colors.Purple)
 	local barText = Kit.Label(barBack, "", UDim2.fromScale(1, 0.8), UDim2.fromScale(0, 0.1))
 	barText.ZIndex = 2
-	local button = Kit.Button(body, "REBIRTH", UDim2.fromScale(0.4, 0.14), UDim2.fromScale(0.3, 0.7), Kit.Colors.Grey, function()
-		Store.Action("Rebirth")
-	end)
+	local button = Kit.Button(
+		body,
+		"REBIRTH",
+		UDim2.fromScale(0.4, 0.14),
+		UDim2.fromScale(0.3, 0.7),
+		Kit.Colors.Grey,
+		function()
+			Store.Action("Rebirth")
+		end
+	)
 
 	local function refresh()
 		local rebirths = Store.Get("Rebirths", 0)
 		local cost = Store.Get("RebirthCost", Economy.RebirthCost(0))
 		local cash = Store.Get("Cash", 0)
 		title.Text = "Rebirth " .. rebirths .. " → " .. rebirths + 1
-		local slotText = if rebirths * Economy.SlotsPerRebirth < Economy.MaxRebirthSlots then " · +" .. Economy.SlotsPerRebirth .. " slots" else ""
+		local slotText = if rebirths * Economy.SlotsPerRebirth < Economy.MaxRebirthSlots
+			then " · +" .. Economy.SlotsPerRebirth .. " slots"
+			else ""
 		rewards.Text = "+" .. math.floor(Economy.RebirthMultiplier * 100) .. "% cash forever" .. slotText
 		local progress = math.clamp(cash / cost, 0, 1)
 		barFill.Size = UDim2.fromScale(progress, 1)
@@ -244,15 +287,24 @@ function Panels.Daily(screen: ScreenGui): Kit.Panel
 		local tile = Kit.Frame(row, UDim2.fromScale(0.133, 1), nil, Kit.Colors.PanelLight)
 		Kit.Stroke(tile, 2)
 		Kit.Label(tile, "Day " .. day, UDim2.fromScale(0.9, 0.2), UDim2.fromScale(0.05, 0.05))
-		local reward = if day == 7 then "💎\nEpic Slime\n+ cash" else "💰\n" .. Events.DailyIncomeMinutes[day] .. " min\nof cash"
+		local reward = if day == 7
+			then "💎\nEpic Slime\n+ cash"
+			else "💰\n" .. Events.DailyIncomeMinutes[day] .. " min\nof cash"
 		local label = Kit.Label(tile, reward, UDim2.fromScale(0.9, 0.65), UDim2.fromScale(0.05, 0.3), Kit.Colors.Gold)
 		label.TextWrapped = true
 		table.insert(tiles, tile)
 	end
 	local status = Kit.Label(panel.Body, "", UDim2.fromScale(1, 0.1), UDim2.fromScale(0, 0.64), Kit.Colors.Muted)
-	local button = Kit.Button(panel.Body, "CLAIM", UDim2.fromScale(0.36, 0.16), UDim2.fromScale(0.32, 0.78), Kit.Colors.Green, function()
-		Store.Action("ClaimDaily")
-	end)
+	local button = Kit.Button(
+		panel.Body,
+		"CLAIM",
+		UDim2.fromScale(0.36, 0.16),
+		UDim2.fromScale(0.32, 0.78),
+		Kit.Colors.Green,
+		function()
+			Store.Action("ClaimDaily")
+		end
+	)
 
 	local function refresh()
 		local streak = Store.Get("DailyStreak", 1)
@@ -283,7 +335,13 @@ end
 
 function Panels.Codes(screen: ScreenGui): Kit.Panel
 	local panel = Kit.Panel(screen, "🎟️ Codes", Color3.fromRGB(255, 120, 170))
-	Kit.Label(panel.Body, "Follow the group for new codes!", UDim2.fromScale(1, 0.12), UDim2.fromScale(0, 0.08), Kit.Colors.Muted)
+	Kit.Label(
+		panel.Body,
+		"Follow the group for new codes!",
+		UDim2.fromScale(1, 0.12),
+		UDim2.fromScale(0, 0.08),
+		Kit.Colors.Muted
+	)
 	local box = Instance.new("TextBox")
 	box.Size = UDim2.fromScale(0.7, 0.18)
 	box.Position = UDim2.fromScale(0.15, 0.32)

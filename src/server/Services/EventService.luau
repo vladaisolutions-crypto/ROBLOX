@@ -91,7 +91,10 @@ end
 -- Adds server luck time (stacks). Called when someone buys Server Luck.
 function EventService.AddServerLuck(seconds: number, buyerName: string)
 	luckEndsAt = math.max(luckEndsAt, now()) + seconds
-	NetService.Announce("🍀 " .. buyerName .. " bought SERVER LUCK x2 for everyone! 🍀", Color3.fromRGB(120, 255, 120))
+	NetService.Announce(
+		"🍀 " .. buyerName .. " bought SERVER LUCK x2 for everyone! 🍀",
+		Color3.fromRGB(120, 255, 120)
+	)
 	broadcast()
 end
 
@@ -105,7 +108,10 @@ function EventService.Start()
 			if active ~= rainWasActive then
 				rainWasActive = active
 				if active then
-					NetService.Announce("🌧️ SLIME RAIN! Faster spawns and 3x luck for 2 minutes!", Color3.fromRGB(120, 200, 255))
+					NetService.Announce(
+						"🌧️ SLIME RAIN! Faster spawns and 3x luck for 2 minutes!",
+						Color3.fromRGB(120, 200, 255)
+					)
 				end
 				broadcast()
 			end
