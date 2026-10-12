@@ -74,6 +74,10 @@ This lets a Claude cloud session (like the one that built this) publish builds a
 
 Never paste the API key into a chat. Store it only in the environment settings.
 
+On your own machine, instead of environment settings, copy `.env.example` to `.env`
+(already gitignored) and fill in the three values. `scripts/roblox_cloud.py` reads it
+automatically, so the key never appears in a shell command or in this chat.
+
 ---
 
 ## 3. Turn on the money

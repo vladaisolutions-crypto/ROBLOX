@@ -34,6 +34,23 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_PLACE_FILE = os.path.join(ROOT, "build", "StealASlime.rbxlx")
 
 
+def load_dotenv():
+    """Read KEY=VALUE lines from a gitignored .env so secrets stay out of the shell."""
+    path = os.path.join(ROOT, ".env")
+    if not os.path.isfile(path):
+        return
+    with open(path, encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            os.environ.setdefault(key.strip(), value.strip().strip("\"'"))
+
+
+load_dotenv()
+
+
 def env(name):
     value = os.environ.get(name, "").strip()
     if not value:
