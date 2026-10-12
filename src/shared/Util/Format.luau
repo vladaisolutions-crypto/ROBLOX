@@ -13,7 +13,13 @@ function Format.Number(value: number): string
 	local negative = value < 0
 	value = math.abs(value)
 	if value < 1000 then
-		local text = if value == math.floor(value) then tostring(value) else string.format("%.1f", value)
+		local text
+		if value == math.floor(value) then
+			text = tostring(value)
+		else
+			-- One decimal, but never a bare ".0": 142.04 -> "142", not "142.0".
+			text = string.gsub(string.format("%.1f", value), "%.0$", "")
+		end
 		return (if negative then "-" else "") .. text
 	end
 	local tier = math.min(math.floor(math.log10(value) / 3), #SUFFIXES - 1)

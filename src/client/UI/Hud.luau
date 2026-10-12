@@ -85,8 +85,8 @@ function Hud.Create(screen: ScreenGui, menus: Menus)
 	dot.Visible = false
 	dailyDot = dot
 
-	-- Lock button (bottom centre)
-	local lockButton = Kit.Button(screen, "🔒 LOCK BASE", UDim2.fromScale(0.2, 0.07), UDim2.fromScale(0.4, 0.84), Kit.Colors.Red, function()
+	-- Lock button (bottom centre, above the backpack hotbar)
+	local lockButton = Kit.Button(screen, "🔒 LOCK BASE", UDim2.fromScale(0.2, 0.07), UDim2.fromScale(0.4, 0.75), Kit.Colors.Red, function()
 		local readyAt = Store.Get("LockReadyAt", 0)
 		local endsAt = Store.Get("LockEndsAt", 0)
 		local t = now()
