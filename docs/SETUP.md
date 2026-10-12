@@ -28,6 +28,31 @@ From now on, edit code in `src/` and either:
 - run `rojo serve` and click **Connect** in the Rojo plugin (live sync while Studio is open), or
 - rebuild the `.rbxlx` file and publish.
 
+### Dev tools for `scripts/check.sh`
+
+`scripts/check.sh` is the gate before every commit. Besides Rojo it needs three
+binaries on your `PATH`:
+
+| Tool | What it does in the script | Install |
+|---|---|---|
+| [luau-lsp](https://github.com/JohnnyMorganz/luau-lsp) | strict type check against the Roblox API types in `types/` | `rokit add JohnnyMorganz/luau-lsp` |
+| [StyLua](https://github.com/JohnnyMorganz/StyLua) | formatting, per `stylua.toml` | `rokit add JohnnyMorganz/stylua` |
+| [Lune](https://github.com/lune-org/lune) | runs the unit tests and the balance sim | `rokit add lune-org/lune` |
+
+`rokit.toml` pins the exact versions, so `rokit install` in this folder gets all
+four at once. Without Rokit, drop the release binaries for your platform
+anywhere on your `PATH`.
+
+`stylua.toml` sets `line_endings = "Unix"`, so the repo is LF-only and
+`.gitattributes` pins that with `* text=auto eol=lf`. If you cloned with
+`core.autocrlf=true`, Git hands you CRLF files and stylua wants to rewrite every
+line. Fix it once with:
+
+```sh
+git config core.autocrlf false
+git rm --cached -r -q . && git reset --hard
+```
+
 ---
 
 ## 2. Connect Claude to Roblox

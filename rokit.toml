@@ -1,0 +1,7 @@
+# Tool versions for this repo. Install Rokit (https://github.com/rojo-rbx/rokit),
+# then run `rokit install` here to get everything `scripts/check.sh` needs.
+[tools]
+rojo = "rojo-rbx/rojo@7.7.1"
+lune = "lune-org/lune@0.11.0"
+luau-lsp = "JohnnyMorganz/luau-lsp@1.70.1"
+stylua = "JohnnyMorganz/stylua@2.6.0"
