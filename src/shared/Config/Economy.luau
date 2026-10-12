@@ -1,0 +1,73 @@
+--!strict
+-- All economy tuning lives here so balance changes never touch game logic.
+
+local Economy = {
+	StartingCash = 100,
+
+	-- Base slots
+	BaseSlots = 8,
+	SlotsPerRebirth = 2,
+	MaxRebirthSlots = 10,
+	ExtraSlotsPass = 6, -- "+6 Slots" game pass
+
+	-- Selling a slime refunds this fraction of its price.
+	SellRefund = 0.5,
+
+	-- Rebirth: costs all cash (minimum shown below), keeps slimes.
+	RebirthBaseCost = 2e6,
+	RebirthCostGrowth = 8,
+	RebirthMultiplier = 0.5, -- +50% income per rebirth
+
+	-- Permanent income bonus per unique slime discovered in the Index.
+	IndexBonusPerSlime = 0.02,
+
+	-- Social boosts
+	FriendBoostPerFriend = 0.1,
+	FriendBoostMax = 0.5,
+	GroupBonus = 0.1,
+
+	-- Pass multipliers
+	VipMultiplier = 1.5,
+	DoubleCashMultiplier = 2,
+
+	-- Offline earnings, paid on rejoin.
+	OfflineCapSeconds = 60 * 60,
+	OfflineCapSecondsVip = 4 * 60 * 60,
+	OfflineEfficiency = 0.25,
+
+	-- Base lock
+	LockSeconds = 60,
+	LockSecondsLongPass = 120,
+	LockCooldownSeconds = 30,
+
+	-- Stealing
+	StealHoldSeconds = 1.2,
+	CarrySpeedFactor = 0.7,
+	CarrySpeedFactorBoots = 0.9,
+	CarryTimeoutSeconds = 60,
+	WalkSpeed = 18,
+	WalkSpeedBoots = 24,
+
+	-- Bonk bat
+	BonkCooldown = 0.9,
+	BonkRange = 9,
+	BonkRangeGolden = 13,
+	BonkForce = 70,
+	BonkForceGolden = 110,
+	BonkStunSeconds = 1.2,
+}
+
+function Economy.RebirthCost(rebirths: number): number
+	return Economy.RebirthBaseCost * Economy.RebirthCostGrowth ^ rebirths
+end
+
+function Economy.MaxSlots(rebirths: number, hasExtraSlots: boolean): number
+	local fromRebirths = math.min(rebirths * Economy.SlotsPerRebirth, Economy.MaxRebirthSlots)
+	return Economy.BaseSlots + fromRebirths + (if hasExtraSlots then Economy.ExtraSlotsPass else 0)
+end
+
+-- The absolute maximum number of slots any player can have. Plots are built
+-- with this many pedestals.
+Economy.AbsoluteMaxSlots = Economy.BaseSlots + Economy.MaxRebirthSlots + Economy.ExtraSlotsPass
+
+return Economy
