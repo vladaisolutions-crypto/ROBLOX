@@ -1,7 +1,13 @@
--- Smoke test executed on a real (headless) Roblox server through Open Cloud
--- Luau Execution: `scripts/roblox_cloud.py check`. Errors fail the run.
+-- Smoke test executed on real Roblox infrastructure through Open Cloud Luau
+-- Execution: `scripts/roblox_cloud.py check`. Errors fail the run.
+--
+-- An execution session loads the place but does not run it: RunService
+-- :IsRunning() is false and no Script executes, so nothing boots on its own.
+-- The test therefore boots the server itself through the same Boot module the
+-- real entry point uses, which also means a boot failure shows up here.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 
 local failures = {}
 local function check(condition, message)
@@ -10,7 +16,22 @@ local function check(condition, message)
 	end
 end
 
--- Server scripts start with the place; give them a moment to build the map.
+local server = ServerScriptService:FindFirstChild("Server")
+check(server ~= nil, "ServerScriptService.Server is missing")
+if server then
+	local boot = server:FindFirstChild("Boot")
+	check(boot ~= nil, "Server.Boot is missing")
+	local services = server:FindFirstChild("Services")
+	check(services ~= nil, "Server.Services is missing")
+	if boot and services then
+		local ok, err = pcall(function()
+			require(boot).Run(services)
+		end)
+		check(ok, "server boot failed: " .. tostring(err))
+	end
+end
+
+-- WorldService builds the map on Start, which runs in a spawned thread.
 local map = workspace:WaitForChild("Map", 20)
 check(map ~= nil, "Map folder was not generated")
 task.wait(4)
