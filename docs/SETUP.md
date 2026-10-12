@@ -37,13 +37,12 @@ From now on, edit code in `src/` and either:
 Studio only runs on Windows or Mac, so this runs on **your computer**, not in the cloud.
 
 1. Install [Claude Code](https://code.claude.com/) on your computer and clone this repo.
-2. In Roblox Studio, open the **Assistant** panel → ⚙️ settings → **MCP Servers** → **Quick connect** → turn on **Claude Code**.
+2. In Roblox Studio (the MCP server is built in; nothing to download):
+   - Open the **Assistant** panel (**Window → Assistant**).
+   - Click **…** → **Manage MCP Servers** → turn on **Enable Studio as MCP server**.
+   - Under **Quick connect**, turn on **Claude Code**. Restart Claude Code if the tools don't show up.
+
    Roblox's guide: <https://create.roblox.com/docs/studio/mcp>
-   - If your Studio doesn't have Quick connect yet, use Roblox's official server instead:
-     download the installer from <https://github.com/Roblox/studio-rust-mcp-server/releases>, run it, then:
-     ```
-     claude mcp add --transport stdio Roblox_Studio -- "<path to the installed rbx-studio-mcp>" --stdio
-     ```
 3. Open the place in Studio, then run `claude` in this folder and check with `/mcp` that **Roblox Studio** is connected.
 4. Optional: run `claude remote-control` in this folder so the session also shows up in the Claude app on your phone.
    You can then ask Claude to build things in Studio from anywhere while your computer is on.
