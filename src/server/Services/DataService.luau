@@ -25,6 +25,9 @@ DataService.ProfileLoaded = Signal.new() -- (player, data)
 DataService.ProfileReleasing = Signal.new() -- (player, data), just before the final save
 
 local profiles: { [Player]: PlayerData } = {}
+-- UserIds whose final save is in flight. Autosaves skip them, and a rejoin
+-- to this same server waits so it never loads data older than that save.
+local releasing: { [number]: boolean } = {}
 local memoryOnly = false
 local store: DataStore? = nil
 
@@ -90,6 +93,9 @@ local function saveRaw(player: Player, data: PlayerData, release: boolean): bool
 			if type(lock) == "table" and lock.JobId ~= jobId() then
 				return nil -- another server took over; never overwrite its data
 			end
+			if not release and (releasing[player.UserId] or profiles[player] ~= data) then
+				return nil -- a late autosave must not re-lock after the final save
+			end
 			payload.SessionLock = if release then nil else { JobId = jobId(), Time = os.time() }
 			return payload
 		end)
@@ -144,6 +150,9 @@ function DataService.IsMemoryOnly(): boolean
 end
 
 local function onPlayerAdded(player: Player)
+	while releasing[player.UserId] and player.Parent do
+		task.wait(0.2)
+	end
 	local raw = loadRaw(player.UserId)
 	if not player.Parent then
 		if raw then
@@ -162,15 +171,27 @@ local function onPlayerAdded(player: Player)
 	DataService.ProfileLoaded:Fire(player, data)
 end
 
-local function onPlayerRemoving(player: Player)
-	local data = profiles[player]
-	if not data then
+-- Final save + lock release. Safe to call twice (leave and shutdown race).
+local function release(player: Player, data: PlayerData)
+	local userId = player.UserId
+	if releasing[userId] then
 		return
 	end
+	releasing[userId] = true
 	DataService.ProfileReleasing:Fire(player, data)
 	task.wait() -- let releasing handlers write their final changes
 	saveRaw(player, data, true)
-	profiles[player] = nil
+	if profiles[player] == data then
+		profiles[player] = nil
+	end
+	releasing[userId] = nil
+end
+
+local function onPlayerRemoving(player: Player)
+	local data = profiles[player]
+	if data then
+		release(player, data)
+	end
 end
 
 function DataService.Init()
@@ -196,23 +217,19 @@ function DataService.Start()
 		while true do
 			task.wait(AUTOSAVE_SECONDS)
 			for player, data in profiles do
-				task.spawn(saveRaw, player, data, false)
+				if not releasing[player.UserId] then
+					task.spawn(saveRaw, player, data, false)
+				end
 			end
 		end
 	end)
 
 	game:BindToClose(function()
-		local pending = 0
 		for player, data in profiles do
-			pending += 1
-			task.spawn(function()
-				DataService.ProfileReleasing:Fire(player, data)
-				saveRaw(player, data, true)
-				pending -= 1
-			end)
+			task.spawn(release, player, data)
 		end
 		local deadline = os.clock() + 25
-		while pending > 0 and os.clock() < deadline do
+		while next(releasing) ~= nil and os.clock() < deadline do
 			task.wait(0.1)
 		end
 	end)

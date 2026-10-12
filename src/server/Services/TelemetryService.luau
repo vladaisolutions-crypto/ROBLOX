@@ -61,4 +61,10 @@ function TelemetryService.Custom(player: Player, name: string, value: number?)
 	end)
 end
 
+function TelemetryService.Init()
+	DataService.ProfileLoaded:Connect(function(player: Player)
+		TelemetryService.Onboard(player, TelemetryService.Onboarding.Joined)
+	end)
+end
+
 return TelemetryService

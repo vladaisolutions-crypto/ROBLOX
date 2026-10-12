@@ -30,22 +30,43 @@
         "ClockTime": 14.5,
         "Brightness": 2.5,
         "GlobalShadows": true,
-        "Ambient": [0.45, 0.45, 0.5],
-        "OutdoorAmbient": [0.55, 0.55, 0.6]
+        "Ambient": [
+          0.45,
+          0.45,
+          0.5
+        ],
+        "OutdoorAmbient": [
+          0.55,
+          0.55,
+          0.6
+        ]
       }
     },
     "Workspace": {
       "$properties": {
-        "Gravity": 196.2
+        "Gravity": 196.2,
+        "StreamingEnabled": false
       },
       "Baseplate": {
         "$className": "Part",
         "$properties": {
           "Anchored": true,
           "Locked": true,
-          "Size": [520, 4, 320],
-          "Position": [0, -2, 0],
-          "Color": [0.42, 0.75, 0.33],
+          "Size": [
+            520,
+            4,
+            320
+          ],
+          "Position": [
+            0,
+            -2,
+            0
+          ],
+          "Color": [
+            0.42,
+            0.75,
+            0.33
+          ],
           "Material": "Grass",
           "TopSurface": "Smooth",
           "BottomSurface": "Smooth"
@@ -55,8 +76,16 @@
         "$className": "SpawnLocation",
         "$properties": {
           "Anchored": true,
-          "Size": [8, 1, 8],
-          "Position": [0, 0.5, 115],
+          "Size": [
+            8,
+            1,
+            8
+          ],
+          "Position": [
+            0,
+            0.5,
+            115
+          ],
           "Transparency": 1,
           "CanCollide": false,
           "Neutral": true,

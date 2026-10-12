@@ -137,10 +137,18 @@ local function tutorial(textLabel: TextLabel)
 		return playerAttachment
 	end
 
-	Remotes.Get("Tutorial").OnClientEvent:Connect(function(step: number, text: string?, target: Instance?)
+	-- Last instruction from the server, re-applied after respawns because the
+	-- beam is attached to the old character.
+	local current: { Step: number, Text: string?, Target: Instance? } = { Step = 0 }
+
+	local function apply()
 		clear()
+		local step, text, target = current.Step, current.Text, current.Target
 		textLabel.Visible = step > 0 and text ~= nil
 		textLabel.Text = text or ""
+		if step <= 0 or (target and not target.Parent) then
+			return
+		end
 		local part: BasePart? = nil
 		if target and target:IsA("Model") then
 			part = target.PrimaryPart
@@ -164,6 +172,15 @@ local function tutorial(textLabel: TextLabel)
 		newBeam.FaceCamera = true
 		newBeam.Parent = from
 		beam = newBeam
+	end
+
+	Remotes.Get("Tutorial").OnClientEvent:Connect(function(step: number, text: string?, target: Instance?)
+		current = { Step = step, Text = text, Target = target }
+		apply()
+	end)
+	player.CharacterAdded:Connect(function(character: Model)
+		character:WaitForChild("HumanoidRootPart", 10)
+		apply()
 	end)
 end
 

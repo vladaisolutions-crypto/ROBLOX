@@ -337,12 +337,14 @@ local function refreshFriends()
 	end
 end
 
-local function payOfflineEarnings(player: Player, data: PlayerData)
-	if data.LastOnline <= 0 then
+-- `lastOnline` is captured when the profile loads, because any save in the
+-- meantime (autosave, receipt) overwrites data.LastOnline.
+local function payOfflineEarnings(player: Player, lastOnline: number, loadedAt: number)
+	if lastOnline <= 0 then
 		return
 	end
 	local cap = if PassService.Has(player, "VIP") then Economy.OfflineCapSecondsVip else Economy.OfflineCapSeconds
-	local away = math.min(os.time() - data.LastOnline, cap)
+	local away = math.min(loadedAt - lastOnline, cap)
 	if away < 60 then
 		return
 	end
@@ -354,6 +356,7 @@ local function payOfflineEarnings(player: Player, data: PlayerData)
 end
 
 local function onProfileLoaded(player: Player, data: PlayerData)
+	local lastOnline, loadedAt = data.LastOnline, os.time()
 	local leaderstats = Instance.new("Folder")
 	leaderstats.Name = "leaderstats"
 	local cash = Instance.new("StringValue")
@@ -378,7 +381,7 @@ local function onProfileLoaded(player: Player, data: PlayerData)
 	-- Give pass checks a moment so VIP's longer offline cap applies.
 	task.delay(3, function()
 		if player.Parent and DataService.Get(player) == data then
-			payOfflineEarnings(player, data)
+			payOfflineEarnings(player, lastOnline, loadedAt)
 			EconomyService.PushState(player)
 		end
 	end)

@@ -27,6 +27,7 @@ type Carry = {
 	Mutation: string,
 	Model: Model,
 	StartedAt: number,
+	StartPosition: Vector3,
 }
 
 local StealService = {}
@@ -166,6 +167,7 @@ local function startSteal(thief: Player, owner: Player, slot: number)
 		Mutation = slotData.Mutation,
 		Model = model,
 		StartedAt = os.clock(),
+		StartPosition = thiefRoot.Position,
 	}
 	PlotService.SetCarried(owner, slot, true)
 	applySpeed(thief)
@@ -199,9 +201,16 @@ local function giveBat(player: Player)
 	if not backpack then
 		return
 	end
-	for _, item in backpack:GetChildren() do
-		if item:IsA("Tool") and (item.Name == "Bonk Bat" or item.Name == "Golden Bat") then
-			item:Destroy()
+	-- Remove old bats, including one currently held (it lives in the character).
+	local containers: { Instance } = { backpack }
+	if player.Character then
+		table.insert(containers, player.Character)
+	end
+	for _, container in containers do
+		for _, item in container:GetChildren() do
+			if item:IsA("Tool") and (item.Name == "Bonk Bat" or item.Name == "Golden Bat") then
+				item:Destroy()
+			end
 		end
 	end
 	local golden = PassService.Has(player, "GoldenBat")
@@ -296,7 +305,14 @@ function StealService.Start()
 				else
 					local plot = PlotService.GetPlot(thief)
 					if plot and WorldService.PlotContains(plot, root.Position) then
-						finish(thief, true)
+						-- Character positions are client-controlled: arriving faster
+						-- than anyone can run means a teleport exploit.
+						local fastest = (root.Position - carry.StartPosition).Magnitude / (Economy.WalkSpeedBoots * 1.5)
+						if os.clock() - carry.StartedAt < fastest then
+							finish(thief, false, "The slime slipped away!")
+						else
+							finish(thief, true)
+						end
 					end
 				end
 			end

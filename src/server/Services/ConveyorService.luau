@@ -24,8 +24,12 @@ local NetService = require(script.Parent.NetService)
 local PlotService = require(script.Parent.PlotService)
 local TelemetryService = require(script.Parent.TelemetryService)
 
-local RESERVE_SECONDS = 30
+-- A slime stays paused on the belt while its buyer's purchase dialog is
+-- open, up to this long. The buyer still gets exactly what they saw even if
+-- the receipt arrives after the hold ends.
+local HOLD_SECONDS = 120
 local FLY_SECONDS = 0.8
+local MAX_BUY_DISTANCE = 20
 
 type BeltSlime = {
 	SlimeId: string,
@@ -34,14 +38,21 @@ type BeltSlime = {
 	Model: Model,
 	Tween: Tween,
 	ReservedBy: Player?,
-	ReservedUntil: number,
 	Gone: boolean,
+}
+
+type Pending = {
+	Entry: BeltSlime,
+	SlimeId: string,
+	Mutation: string,
+	Rarity: string,
+	HoldUntil: number,
 }
 
 local ConveyorService = {}
 
 local belt: { BeltSlime } = {}
-local pendingRobux: { [Player]: BeltSlime } = {}
+local pendingRobux: { [Player]: Pending } = {}
 local rng = Random.new()
 
 local function rollRarity(): Rarities.Rarity
@@ -93,10 +104,27 @@ end
 
 local function releaseReservation(entry: BeltSlime)
 	entry.ReservedBy = nil
-	entry.ReservedUntil = 0
 	if not entry.Gone then
 		entry.Tween:Play()
 	end
+end
+
+-- Ends the belt hold for a pending Robux purchase (if it still holds it).
+local function releaseHold(player: Player, pending: Pending)
+	if pending.Entry.ReservedBy == player then
+		releaseReservation(pending.Entry)
+	end
+end
+
+-- Prompts can be triggered from anywhere by exploiters; check distance.
+local function nearEntry(player: Player, entry: BeltSlime): boolean
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local slimeRoot = entry.Model.PrimaryPart
+	return root ~= nil
+		and root:IsA("BasePart")
+		and slimeRoot ~= nil
+		and (root.Position - slimeRoot.Position).Magnitude <= MAX_BUY_DISTANCE
 end
 
 -- Moves the belt model into the buyer's base with a short flight, while the
@@ -134,7 +162,7 @@ local function flyToBase(player: Player, entry: BeltSlime, slot: number)
 	end)
 end
 
-local function recordPurchase(player: Player, entry: BeltSlime, how: string)
+local function recordPurchase(player: Player, slimeId: string, mutation: string, price: number, how: string)
 	local data = DataService.Get(player)
 	if not data then
 		return
@@ -145,19 +173,19 @@ local function recordPurchase(player: Player, entry: BeltSlime, how: string)
 	elseif data.Stats.SlimesBought == 2 then
 		TelemetryService.Onboard(player, TelemetryService.Onboarding.BoughtSecondSlime)
 	end
-	local def = Slimes.ById[entry.SlimeId]
+	local def = Slimes.ById[slimeId]
 	local rarity = Rarities.ByName[def.Rarity]
 	if rarity.Announce then
 		NetService.Announce(
-			player.DisplayName .. " got a " .. string.upper(def.Rarity) .. " " .. SlimeInfo.DisplayName(entry.SlimeId, entry.Mutation) .. "!",
+			player.DisplayName .. " got a " .. string.upper(def.Rarity) .. " " .. SlimeInfo.DisplayName(slimeId, mutation) .. "!",
 			rarity.Color
 		)
 	end
-	TelemetryService.Custom(player, "SlimeBought_" .. how, entry.Price)
+	TelemetryService.Custom(player, "SlimeBought_" .. how, price)
 end
 
 local function buyWithCash(player: Player, entry: BeltSlime)
-	if entry.Gone then
+	if entry.Gone or not nearEntry(player, entry) then
 		return
 	end
 	if entry.ReservedBy and entry.ReservedBy ~= player then
@@ -183,17 +211,18 @@ local function buyWithCash(player: Player, entry: BeltSlime)
 		EconomyService.AddCash(player, entry.Price, "Refund")
 		return
 	end
-	if entry.ReservedBy == player then
+	local pending = pendingRobux[player]
+	if pending and pending.Entry == entry then
 		pendingRobux[player] = nil
 	end
-	recordPurchase(player, entry, "Cash")
+	recordPurchase(player, entry.SlimeId, entry.Mutation, entry.Price, "Cash")
 	flyToBase(player, entry, added.Slot)
 end
 
 local function startRobuxPurchase(player: Player, entry: BeltSlime)
 	local def = Slimes.ById[entry.SlimeId]
 	local product = Monetization.BeltProductByRarity[def.Rarity]
-	if entry.Gone or not product or product.Id == 0 then
+	if entry.Gone or not product or product.Id == 0 or not nearEntry(player, entry) then
 		return
 	end
 	if entry.ReservedBy and entry.ReservedBy ~= player then
@@ -205,13 +234,18 @@ local function startRobuxPurchase(player: Player, entry: BeltSlime)
 		return
 	end
 	local previous = pendingRobux[player]
-	if previous and previous ~= entry then
-		releaseReservation(previous)
+	if previous and previous.Entry ~= entry then
+		releaseHold(player, previous)
 	end
 	entry.ReservedBy = player
-	entry.ReservedUntil = os.clock() + RESERVE_SECONDS
 	entry.Tween:Pause()
-	pendingRobux[player] = entry
+	pendingRobux[player] = {
+		Entry = entry,
+		SlimeId = entry.SlimeId,
+		Mutation = entry.Mutation,
+		Rarity = def.Rarity,
+		HoldUntil = os.clock() + HOLD_SECONDS,
+	}
 	MarketplaceService:PromptProductPurchase(player, product.Id)
 end
 
@@ -284,7 +318,6 @@ local function spawnSlime(forcedRarity: string?, startX: number?)
 		Model = model,
 		Tween = tween,
 		ReservedBy = nil,
-		ReservedUntil = 0,
 		Gone = false,
 	}
 	table.insert(belt, entry)
@@ -310,14 +343,22 @@ function ConveyorService.GrantBeltProduct(player: Player, rarityName: string): s
 	if not DataService.Get(player) then
 		return nil
 	end
-	local entry: BeltSlime? = pendingRobux[player]
+	local pending = pendingRobux[player]
+	local entry: BeltSlime? = nil
 	local slimeId, mutation
-	if entry and not entry.Gone and Slimes.ById[entry.SlimeId].Rarity == rarityName then
-		slimeId, mutation = entry.SlimeId, entry.Mutation
+	if pending and pending.Rarity == rarityName then
+		-- Grant exactly what the player saw, even if the belt hold ended.
+		slimeId, mutation = pending.SlimeId, pending.Mutation
+		if not pending.Entry.Gone and pending.Entry.ReservedBy == player then
+			entry = pending.Entry
+		end
 	else
-		-- Reservation lost (e.g. server restarted mid-purchase): grant the
-		-- first standard slime of the purchased rarity, never a random one.
-		entry = nil
+		-- No matching purchase on record (e.g. the server restarted mid
+		-- purchase): grant the first standard slime of the purchased rarity,
+		-- never a random one.
+		if pending then
+			releaseHold(player, pending)
+		end
 		local fallback = Slimes.List[1]
 		for _, def in Slimes.List do
 			if def.Rarity == rarityName and def.Event == nil then
@@ -339,8 +380,8 @@ function ConveyorService.GrantBeltProduct(player: Player, rarityName: string): s
 		end
 		return "cash:" .. slimeId
 	end
+	recordPurchase(player, slimeId, mutation, SlimeInfo.Price(slimeId, mutation), "Robux")
 	if entry then
-		recordPurchase(player, entry, "Robux")
 		flyToBase(player, entry, added.Slot)
 	end
 	return slimeId
@@ -368,17 +409,17 @@ function ConveyorService.Init()
 		if not player or not product or product.Kind ~= "BeltSlime" then
 			return
 		end
-		local entry = pendingRobux[player]
-		if entry and not purchased then
+		local pending = pendingRobux[player]
+		if pending and not purchased then
 			pendingRobux[player] = nil
-			releaseReservation(entry)
+			releaseHold(player, pending)
 		end
 	end)
 	Players.PlayerRemoving:Connect(function(player)
-		local entry = pendingRobux[player]
-		if entry then
+		local pending = pendingRobux[player]
+		if pending then
 			pendingRobux[player] = nil
-			releaseReservation(entry)
+			releaseHold(player, pending)
 		end
 	end)
 end
@@ -395,12 +436,12 @@ function ConveyorService.Start()
 		while true do
 			task.wait(World.SpawnEverySeconds / EventService.SpawnSpeedup())
 			spawnSlime()
-			-- Expire Robux reservations that were never completed.
+			-- Let held slimes move on if a purchase dialog stays open too long.
+			-- The pending record stays, so a late receipt still grants it.
 			local t = os.clock()
-			for player, entry in pendingRobux do
-				if t > entry.ReservedUntil then
-					pendingRobux[player] = nil
-					releaseReservation(entry)
+			for player, pending in pendingRobux do
+				if t > pending.HoldUntil then
+					releaseHold(player, pending)
 				end
 			end
 			-- Parked slimes at the end of the belt whose reservation ended.

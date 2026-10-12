@@ -10,6 +10,7 @@ local DataTemplate = require(script.Parent.Parent.DataTemplate)
 local DataService = require(script.Parent.DataService)
 local EconomyService = require(script.Parent.EconomyService)
 local NetService = require(script.Parent.NetService)
+local PassService = require(script.Parent.PassService)
 local PlotService = require(script.Parent.PlotService)
 
 type PlayerData = DataTemplate.PlayerData
@@ -65,6 +66,10 @@ local function update(player: Player)
 	if data.TutorialStep == 5 and os.clock() - (stepStarted[player] or 0) > 20 then
 		setStep(player, data, DONE)
 	end
+	-- Auto Collect owners never step on pads, so skip the collect step.
+	if data.TutorialStep == 2 and PassService.Has(player, "AutoCollect") then
+		setStep(player, data, 3)
+	end
 	local step = data.TutorialStep
 	local goal = if step < DONE then target(player, data) else nil
 	local sent = lastSent[player]
@@ -83,7 +88,7 @@ function TutorialService.Init()
 		end
 		if data.TutorialStep == 1 then
 			setStep(player, data, 2)
-		elseif data.TutorialStep == 3 and data.Stats.SlimesBought >= 3 then
+		elseif data.TutorialStep == 3 and #data.Slots >= 3 then
 			setStep(player, data, 4)
 		end
 	end)

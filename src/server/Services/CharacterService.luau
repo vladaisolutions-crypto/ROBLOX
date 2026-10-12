@@ -22,10 +22,15 @@ local function onCharacter(player: Player, character: Model)
 	local plot = PlotService.GetPlot(player)
 	local root = character:WaitForChild("HumanoidRootPart", 10)
 	local humanoid = character:WaitForChild("Humanoid", 10)
-	if not plot or not root or not humanoid or not humanoid:IsA("Humanoid") then
+	if not plot or not root or not root:IsA("BasePart") or not humanoid or not humanoid:IsA("Humanoid") then
 		return
 	end
-	character:PivotTo(plot.SpawnCFrame)
+	-- RespawnLocation normally puts them in their base already. If the engine
+	-- placed them elsewhere, move them once it has finished spawning.
+	task.wait()
+	if (root.Position - plot.SpawnCFrame.Position).Magnitude > 25 then
+		character:PivotTo(plot.SpawnCFrame)
+	end
 
 	for _, descendant in character:GetDescendants() do
 		setGroup(descendant, plot.OwnerGroup)
@@ -55,8 +60,9 @@ function CharacterService.Init()
 	for _, player in Players:GetPlayers() do
 		watch(player)
 	end
-	PlotService.PlotAssigned:Connect(function(player: Player, _plot: Plot)
+	PlotService.PlotAssigned:Connect(function(player: Player, plot: Plot)
 		if player.Parent then
+			player.RespawnLocation = plot.Spawn
 			player:LoadCharacterAsync()
 		end
 	end)

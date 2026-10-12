@@ -18,6 +18,7 @@ export type Plot = {
 	OwnerLabel: TextLabel,
 	StatusLabel: TextLabel,
 	SpawnCFrame: CFrame,
+	Spawn: SpawnLocation,
 	Pedestals: { BasePart },
 	CollectPads: { BasePart },
 	PadLabels: { TextLabel },
@@ -291,6 +292,16 @@ local function buildPlot(index: number, cframe: CFrame): Plot
 	-- Facing the belt so the first thing a new player sees is slimes for sale.
 	local spawnPosition = at(-W / 2 + 8, floorY + 3, D / 2 - 6).Position
 	local facing = cframe:VectorToWorldSpace(Vector3.new(0, 0, 1))
+	local spawn = Instance.new("SpawnLocation")
+	spawn.Name = "Spawn"
+	spawn.Anchored = true
+	spawn.CanCollide = false
+	spawn.Transparency = 1
+	spawn.Size = Vector3.new(6, 1, 6)
+	spawn.CFrame = CFrame.lookAt(Vector3.new(spawnPosition.X, floorY + 0.5, spawnPosition.Z), Vector3.new(spawnPosition.X, floorY + 0.5, spawnPosition.Z) + facing)
+	spawn.Neutral = true
+	spawn.Duration = 0
+	spawn.Parent = model
 
 	return {
 		Index = index,
@@ -301,6 +312,7 @@ local function buildPlot(index: number, cframe: CFrame): Plot
 		OwnerLabel = ownerLabel,
 		StatusLabel = statusLabel,
 		SpawnCFrame = CFrame.lookAt(spawnPosition, spawnPosition + facing),
+		Spawn = spawn,
 		Pedestals = pedestals,
 		CollectPads = pads,
 		PadLabels = padLabels,

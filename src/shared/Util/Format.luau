@@ -26,8 +26,10 @@ function Format.Number(value: number): string
 	else
 		text = string.format("%.2f", math.floor(scaled * 100) / 100)
 	end
-	-- Trim trailing zeros: "1.50" -> "1.5", "2.00" -> "2"
-	text = string.gsub(text, "%.?0+$", "")
+	-- Trim trailing decimal zeros: "1.50" -> "1.5", "2.00" -> "2" (never "100" -> "1")
+	if string.find(text, ".", 1, true) then
+		text = string.gsub(text, "%.?0+$", "")
+	end
 	return (if negative then "-" else "") .. text .. SUFFIXES[tier + 1]
 end
 
