@@ -32,6 +32,8 @@ local function grant(player: Player, passKey: string)
 		return
 	end
 	passes[passKey] = true
+	-- Lets clients show perks of other players (e.g. the VIP chat tag).
+	player:SetAttribute("Pass_" .. passKey, true)
 	PassService.Changed:Fire(player, passKey)
 end
 

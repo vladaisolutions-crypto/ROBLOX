@@ -8,6 +8,7 @@ local Kit = require(script.UI.Kit)
 local Hud = require(script.UI.Hud)
 local Panels = require(script.UI.Panels)
 local Controllers = require(script.Controllers)
+local ChatTags = require(script.ChatTags)
 
 local player = Players.LocalPlayer
 
@@ -44,6 +45,7 @@ local tutorialLabel = Kit.Label(screen, "", UDim2.fromScale(0.6, 0.05), UDim2.fr
 tutorialLabel.Visible = false
 
 Controllers.Start(tutorialLabel)
+ChatTags.Start()
 
 -- Open the daily reward panel on join if there's something to claim.
 task.delay(4, function()
