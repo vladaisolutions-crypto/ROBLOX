@@ -3,7 +3,8 @@
 --
 --   Merge  three orbs fly into the merged slime, then a burst, a shockwave
 --          ring, a big name pop-up and the cauldron sound (green smoke in
---          the Halloween event); the owner's screen flashes.
+--          the Halloween event). No full-screen flashes anywhere
+--          (photosensitive players).
 --   Grow   a puff and a boing when a slime grows a size.
 --   Cash   a floating "+$" and coins when you collect.
 --   Rare   confetti, a fanfare and the rarity name over a rare slime.
@@ -33,7 +34,6 @@ local camera = workspace.CurrentCamera
 local Effects = {}
 
 local folder: Folder
-local flash: Frame
 local screenGui: ScreenGui
 local lastOffer = -math.huge
 
@@ -142,12 +142,6 @@ local function popText(at: Vector3, text: string, color: Color3, size: number, r
 	Debris:AddItem(anchor, 2)
 end
 
-local function screenFlash(color: Color3, strength: number)
-	flash.BackgroundColor3 = color
-	flash.BackgroundTransparency = 1 - strength
-	TweenService:Create(flash, TweenInfo.new(0.5), { BackgroundTransparency = 1 }):Play()
-end
-
 local function shake(amount: number, seconds: number)
 	local start = os.clock()
 	local connection
@@ -214,7 +208,6 @@ local function onMerge(data: { [string]: any })
 		local name = if type(data.Name) == "string" then data.Name else "MERGED!"
 		popText(to + Vector3.new(0, 4, 0), string.upper(name) .. "!", color, if data.Special then 1.4 else 1.1)
 		if data.Owner == player.UserId then
-			screenFlash(orbColor, 0.45)
 			shake(0.03, 0.35)
 		end
 	end)
@@ -257,7 +250,6 @@ local function onRare(data: { [string]: any })
 	local rarity = if type(data.Rarity) == "string" then string.upper(data.Rarity) else "RARE"
 	popText(at + Vector3.new(0, 4, 0), rarity .. "!", color, 1.2)
 	if data.Owner == player.UserId then
-		screenFlash(color, 0.35)
 	end
 end
 
@@ -341,7 +333,6 @@ local function onBonk(data: { [string]: any })
 	end
 	if data.Victim == player.UserId then
 		shake(0.07, 0.45)
-		screenFlash(Color3.new(1, 1, 1), 0.35)
 	elseif data.Attacker == player.UserId then
 		shake(0.025, 0.18)
 	end
@@ -501,13 +492,6 @@ function Effects.Start(screen: ScreenGui)
 	folder = Instance.new("Folder")
 	folder.Name = "LocalEffects"
 	folder.Parent = workspace
-	flash = Instance.new("Frame")
-	flash.Size = UDim2.fromScale(1, 1)
-	flash.BackgroundTransparency = 1
-	flash.BorderSizePixel = 0
-	flash.ZIndex = 50
-	flash.Active = false
-	flash.Parent = screen
 	Remotes.Get("Fx").OnClientEvent:Connect(function(kind: string, data: any)
 		if type(data) ~= "table" then
 			return
