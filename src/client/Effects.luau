@@ -261,6 +261,92 @@ local function onRare(data: { [string]: any })
 	end
 end
 
+local function characterOf(userId: any): Model?
+	local who = if type(userId) == "number" then Players:GetPlayerByUserId(userId) else nil
+	return if who then who.Character else nil
+end
+
+-- Bat swing: the barrel trail streaks and the air whooshes.
+local function onSwing(data: { [string]: any })
+	local character = characterOf(data.Attacker)
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not character or not root or not root:IsA("BasePart") then
+		return
+	end
+	if (root.Position - camera.CFrame.Position).Magnitude > 120 then
+		return
+	end
+	play(Sounds.Whoosh, root.Position, 0.6, 0.9 + math.random() * 0.25)
+	local trail = character:FindFirstChild("SwingTrail", true)
+	if trail and trail:IsA("Trail") then
+		trail.Enabled = true
+		task.delay(0.35, function()
+			trail.Enabled = false
+		end)
+	end
+end
+
+-- Dizzy stars circling a stunned player's head.
+local function dizzy(character: Model, seconds: number)
+	local head = character:FindFirstChild("Head")
+	if not head or not head:IsA("BasePart") then
+		return
+	end
+	local stars = {}
+	for i = 1, 4 do
+		local star = anchoredPart(Vector3.one * 0.45, Color3.fromRGB(255, 230, 60))
+		star.Shape = Enum.PartType.Ball
+		stars[i] = star
+	end
+	local start = os.clock()
+	local connection
+	connection = RunService.RenderStepped:Connect(function()
+		local t = os.clock() - start
+		if t > seconds or not head.Parent then
+			connection:Disconnect()
+			for _, star in stars do
+				star:Destroy()
+			end
+			return
+		end
+		for i, star in stars do
+			local angle = t * 7 + i * math.pi / 2
+			star.Position = head.Position
+				+ Vector3.new(math.cos(angle) * 1.3, 1.2 + math.sin(t * 9 + i) * 0.15, math.sin(angle) * 1.3)
+		end
+	end)
+end
+
+-- Bat hit: BONK pop-up, stars, the cartoon bonk, shakes, and dizzy stars.
+local function onBonk(data: { [string]: any })
+	local at = data.Position
+	if typeof(at) ~= "Vector3" then
+		return
+	end
+	local golden = data.Golden == true
+	local color = if golden then Color3.fromRGB(255, 210, 60) else Color3.fromRGB(255, 255, 255)
+	play(Sounds.Bonk, at, 1, 0.92 + math.random() * 0.18)
+	burst(at, Color3.fromRGB(255, 230, 60), 28, 28, 0.9)
+	burst(at, color, 14, 18, 0.6)
+	shockwave(at, Color3.fromRGB(255, 240, 150), 7)
+	popText(
+		at + Vector3.new(0, 2.5, 0),
+		if data.Dropped then "BONK! DROPPED IT!" else "BONK!",
+		if data.Dropped then Color3.fromRGB(255, 90, 60) else Color3.fromRGB(255, 230, 60),
+		if data.Dropped then 1.15 else 0.95
+	)
+	local victim = characterOf(data.Victim)
+	if victim then
+		dizzy(victim, if type(data.Stun) == "number" then data.Stun else 1.5)
+	end
+	if data.Victim == player.UserId then
+		shake(0.07, 0.45)
+		screenFlash(Color3.new(1, 1, 1), 0.35)
+	elseif data.Attacker == player.UserId then
+		shake(0.025, 0.18)
+	end
+end
+
 -- A pass offer at the moment it helps: a card that slides up with a buy
 -- button, and goes away on its own. At most one every 90 seconds.
 local function onOffer(data: { [string]: any })
@@ -436,6 +522,10 @@ function Effects.Start(screen: ScreenGui)
 			onRare(data)
 		elseif kind == "Offer" then
 			onOffer(data)
+		elseif kind == "Swing" then
+			onSwing(data)
+		elseif kind == "Bonk" then
+			onBonk(data)
 		end
 	end)
 	jelly()

@@ -107,6 +107,10 @@ local function listenKnockback()
 		end
 		humanoid:ChangeState(Enum.HumanoidStateType.FallingDown)
 		root.AssemblyLinearVelocity = velocity
+		-- Cartoon tumble: spin head over heels away from the hit.
+		local flat = Vector3.new(velocity.X, 0, velocity.Z)
+		local axis = if flat.Magnitude > 0.01 then flat.Unit:Cross(Vector3.yAxis) else Vector3.xAxis
+		root.AssemblyAngularVelocity = -axis * 14 + Vector3.new(0, (math.random() - 0.5) * 10, 0)
 		task.delay(stun, function()
 			if humanoid.Parent and humanoid.Health > 0 then
 				humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)

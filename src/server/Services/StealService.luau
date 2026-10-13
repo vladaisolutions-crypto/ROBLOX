@@ -217,6 +217,9 @@ local function startSteal(thief: Player, owner: Player, slot: number)
 	NetService.Notify(owner, "⚠️ " .. thief.DisplayName .. " is stealing your " .. name .. "! BONK them!", "Bad")
 end
 
+-- A proper bat: taped grip and knob where the hand is (handle -Z end),
+-- tapering into a thick barrel with a rounded cap. The Golden Bat glows.
+-- A trail on the barrel tip is switched on by clients during a swing.
 local function makeBat(golden: boolean): Tool
 	local tool = Instance.new("Tool")
 	tool.Name = if golden then "Golden Bat" else "Bonk Bat"
@@ -228,11 +231,70 @@ local function makeBat(golden: boolean): Tool
 	local handle = Instance.new("Part")
 	handle.Name = "Handle"
 	handle.Size = Vector3.new(0.7, 0.7, 4.2)
-	handle.Color = if golden then Color3.fromRGB(255, 200, 40) else Color3.fromRGB(150, 100, 60)
-	handle.Material = if golden then Enum.Material.Foil else Enum.Material.Wood
+	handle.Transparency = 1
 	handle.CanCollide = false
 	handle.Massless = true
 	handle.Parent = tool
+
+	local wood = if golden then Color3.fromRGB(255, 200, 40) else Color3.fromRGB(176, 120, 70)
+	local material = if golden then Enum.Material.Foil else Enum.Material.Wood
+	local tape = if golden then Color3.fromRGB(40, 30, 20) else Color3.fromRGB(35, 35, 40)
+	local along = CFrame.Angles(0, math.rad(90), 0) -- cylinders run along X; turn them along Z
+	local function piece(
+		name: string,
+		size: Vector3,
+		z: number,
+		color: Color3,
+		mat: Enum.Material,
+		ball: boolean?
+	): Part
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Size = size
+		p.Shape = if ball then Enum.PartType.Ball else Enum.PartType.Cylinder
+		p.Color = color
+		p.Material = mat
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.Massless = true
+		p.CFrame = handle.CFrame * CFrame.new(0, 0, z) * (if ball then CFrame.identity else along)
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = handle
+		weld.Part1 = p
+		weld.Parent = p
+		p.Parent = tool
+		return p
+	end
+	piece("Knob", Vector3.one * 0.5, -2.05, tape, Enum.Material.SmoothPlastic, true)
+	piece("Grip", Vector3.new(1.9, 0.34, 0.34), -1.05, tape, Enum.Material.Fabric)
+	piece("Taper", Vector3.new(0.9, 0.5, 0.5), 0.25, wood, material)
+	local barrel = piece("Barrel", Vector3.new(2.1, 0.8, 0.8), 1.25, wood, material)
+	piece("Cap", Vector3.one * 0.8, 2.3, wood, material, true)
+
+	local tip0, tip1 = Instance.new("Attachment"), Instance.new("Attachment")
+	tip0.Name, tip1.Name = "TrailTop", "TrailBottom"
+	tip0.Position, tip1.Position = Vector3.new(1, 0.35, 0), Vector3.new(1, -0.35, 0)
+	tip0.Parent, tip1.Parent = barrel, barrel
+	local trail = Instance.new("Trail")
+	trail.Name = "SwingTrail"
+	trail.Attachment0, trail.Attachment1 = tip0, tip1
+	trail.Color = ColorSequence.new(if golden then Color3.fromRGB(255, 230, 120) else Color3.new(1, 1, 1))
+	trail.Transparency = NumberSequence.new(0.2, 1)
+	trail.LightEmission = 0.6
+	trail.Lifetime = 0.18
+	trail.Enabled = false
+	trail.Parent = barrel
+	if golden then
+		local light = Instance.new("PointLight")
+		light.Color = Color3.fromRGB(255, 210, 90)
+		light.Range = 8
+		light.Brightness = 1.5
+		light.Parent = barrel
+		local sparkles = Instance.new("Sparkles")
+		sparkles.SparkleColor = Color3.fromRGB(255, 230, 120)
+		sparkles.Parent = barrel
+	end
 	return tool
 end
 
@@ -282,6 +344,8 @@ function StealService.Bonk(attacker: Player, golden: boolean)
 		Debris:AddItem(anim, 0.2)
 	end
 
+	NetService.Fx("Swing", { Attacker = attacker.UserId })
+
 	local range = if golden then Economy.BonkRangeGolden else Economy.BonkRange
 	local force = if golden then Economy.BonkForceGolden else Economy.BonkForce
 	for _, target in Players:GetPlayers() do
@@ -295,6 +359,14 @@ function StealService.Bonk(attacker: Player, golden: boolean)
 				direction = if direction.Magnitude > 0.01 then direction.Unit else attackerRoot.CFrame.LookVector
 				Remotes.Get("Knockback")
 					:FireClient(target, direction * force + Vector3.new(0, force * 0.45, 0), Economy.BonkStunSeconds)
+				NetService.Fx("Bonk", {
+					Position = targetRoot.Position + Vector3.new(0, 2, 0),
+					Attacker = attacker.UserId,
+					Victim = target.UserId,
+					Dropped = carries[target] ~= nil,
+					Golden = golden,
+					Stun = Economy.BonkStunSeconds,
+				})
 				if carries[target] then
 					finish(target, false, "💥 " .. attacker.DisplayName .. " bonked you! You dropped the slime.")
 					NetService.Notify(attacker, "💥 You made " .. target.DisplayName .. " drop it!", "Good")

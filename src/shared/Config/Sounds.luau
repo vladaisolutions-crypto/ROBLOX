@@ -8,6 +8,8 @@ local Uploaded: { [string]: number } = {
 	Boing = 84400207824599,
 	Cash = 96404268243461,
 	Rare = 81697270155385,
+	Bonk = 136154988977012,
+	Whoosh = 89877680967761,
 }
 
 -- Source file in assets/sfx for each key (used by the upload script).
@@ -16,6 +18,8 @@ local Files: { [string]: string } = {
 	Boing = "boing",
 	Cash = "cash",
 	Rare = "rare",
+	Bonk = "bonk",
+	Whoosh = "whoosh",
 }
 
 local Fallback: { [string]: string } = {
@@ -23,6 +27,8 @@ local Fallback: { [string]: string } = {
 	Boing = "rbxasset://sounds/action_jump.mp3",
 	Cash = "rbxasset://sounds/electronicpingshort.wav",
 	Rare = "rbxasset://sounds/electronicpingshort.wav",
+	Bonk = "rbxasset://sounds/collide.wav",
+	Whoosh = "rbxasset://sounds/swordlunge.wav",
 }
 
 local Ids: { [string]: string } = {}
