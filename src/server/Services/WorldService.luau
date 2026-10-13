@@ -510,6 +510,12 @@ local function buildScenery()
 end
 
 function WorldService.Init()
+	-- The ground's top face must sit just below y = 0, under the belt and
+	-- floors. (Rojo does not apply a part's Position, so set it here.)
+	local ground = workspace:FindFirstChild("Baseplate")
+	if ground and ground:IsA("BasePart") then
+		ground.CFrame = CFrame.new(0, -ground.Size.Y / 2 - 0.05, 0)
+	end
 	mapFolder = Instance.new("Folder")
 	mapFolder.Name = "Map"
 	mapFolder.Parent = workspace
