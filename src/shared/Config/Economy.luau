@@ -59,14 +59,18 @@ local Economy = {
 	BonkStunSeconds = 2,
 
 	-- NPC thief (ThiefService): visits each player every few minutes.
-	ThiefFirstDelay = 240, -- seconds after joining before the first visit
-	ThiefMinInterval = 240,
-	ThiefMaxInterval = 420,
+	ThiefFirstDelay = 150, -- seconds after joining before the first raid
+	ThiefMinInterval = 120, -- seconds between raids (random in this range)
+	ThiefMaxInterval = 300,
 	ThiefMinSlimes = 3, -- only bases with at least this many (they skip the best one)
-	ThievesPerRaid = 2, -- each after a different slime
-	ThiefRaidSpacing = 3, -- seconds between thieves in a raid
+	-- Gang size per raid: weight for 1, 2, 3, 4 thieves (each after a different slime).
+	ThiefGangWeights = { 25, 40, 25, 10 },
+	ThiefSpacingMin = 1.5, -- seconds between thieves in a raid (random in this range)
+	ThiefSpacingMax = 5,
 	ThiefWalkSpeed = 14, -- sneaking in
 	ThiefCarrySpeed = 16.5, -- running away; players walk 18, so you can just catch him
+	ThiefSpeedMin = 0.9, -- each thief's speed is scaled by a random amount in this range
+	ThiefSpeedMax = 1.08,
 	ThiefGrabSeconds = 2,
 	ThiefRewardMinutes = 1, -- bonk reward: minutes of the owner's base income
 	ThiefRewardMinimum = 150,

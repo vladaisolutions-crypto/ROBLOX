@@ -76,6 +76,7 @@ type Thief = {
 	Carry: Model?,
 	Done: boolean,
 	Bubble: TextLabel?,
+	Speed: number, -- this thief's speed multiplier
 }
 
 local ThiefService = {}
@@ -88,15 +89,66 @@ local function randomInterval(): number
 	return Random.new():NextNumber(Economy.ThiefMinInterval, Economy.ThiefMaxInterval)
 end
 
-local function buildThief(): (Model, Humanoid, BasePart)
+-- Every thief is a little different: outfit, skin, hat, size and name.
+local NAMES = {
+	"Sneaky Sam",
+	"Slippery Sid",
+	"Grabby Gus",
+	"Tiptoe Tim",
+	"Sticky Steve",
+	"Quick Quinn",
+	"Shifty Sal",
+	"Pocket Pete",
+	"Nimble Nell",
+	"Sly Sly",
+	"Cheeky Chad",
+	"Swipey Sue",
+}
+local SKINS = {
+	Color3.fromRGB(255, 220, 177),
+	Color3.fromRGB(235, 200, 160),
+	Color3.fromRGB(198, 145, 100),
+	Color3.fromRGB(141, 85, 54),
+	Color3.fromRGB(92, 58, 40),
+}
+local SHIRTS = {
+	Color3.fromRGB(30, 30, 36), -- classic black
+	Color3.fromRGB(40, 40, 70), -- navy
+	Color3.fromRGB(70, 30, 80), -- purple
+	Color3.fromRGB(90, 20, 30), -- maroon
+	Color3.fromRGB(25, 70, 45), -- forest
+	Color3.fromRGB(200, 200, 205), -- prison stripes grey
+}
+local HAT_COLORS = {
+	Color3.fromRGB(200, 40, 50),
+	Color3.fromRGB(255, 140, 20),
+	Color3.fromRGB(40, 120, 220),
+	Color3.fromRGB(60, 180, 80),
+	Color3.fromRGB(30, 30, 36),
+	Color3.fromRGB(240, 200, 40),
+}
+local HATS = { "Beanie", "Cap", "TopHat", "Bandana", "None" }
+
+local function pick<T>(rng: Random, list: { T }): T
+	return list[rng:NextInteger(1, #list)]
+end
+
+local function buildThief(rng: Random): (Model, Humanoid, BasePart, string)
 	local description = Instance.new("HumanoidDescription")
-	local black = Color3.fromRGB(30, 30, 36)
-	description.HeadColor = Color3.fromRGB(235, 200, 160)
-	description.TorsoColor = black
-	description.LeftArmColor = black
-	description.RightArmColor = black
-	description.LeftLegColor = Color3.fromRGB(45, 45, 55)
-	description.RightLegColor = Color3.fromRGB(45, 45, 55)
+	local skin = pick(rng, SKINS)
+	local shirt = pick(rng, SHIRTS)
+	local pants = shirt:Lerp(Color3.new(0, 0, 0), 0.35)
+	description.HeadColor = skin
+	description.TorsoColor = shirt
+	description.LeftArmColor = shirt
+	description.RightArmColor = shirt
+	description.LeftLegColor = pants
+	description.RightLegColor = pants
+	description.HeightScale = rng:NextNumber(0.85, 1.12)
+	description.WidthScale = rng:NextNumber(0.8, 1.2)
+	description.DepthScale = description.WidthScale
+	description.HeadScale = rng:NextNumber(0.92, 1.12)
+	local thiefName = pick(rng, NAMES)
 	local model = Players:CreateHumanoidModelFromDescription(description, Enum.HumanoidRigType.R15)
 	model.Name = "Thief"
 	local humanoid = model:FindFirstChildOfClass("Humanoid") :: Humanoid
@@ -107,7 +159,7 @@ local function buildThief(): (Model, Humanoid, BasePart)
 
 	local head = model:FindFirstChild("Head")
 	if head and head:IsA("BasePart") then
-		-- Robber's mask and beanie.
+		-- Robber's mask and a random hat.
 		local mask = Instance.new("Part")
 		mask.Name = "Mask"
 		mask.Size = Vector3.new(1.3, 0.35, 1.25)
@@ -119,14 +171,47 @@ local function buildThief(): (Model, Humanoid, BasePart)
 		weld.Part0, weld.Part1 = head, mask
 		weld.Parent = mask
 		mask.Parent = model
-		local beanie = mask:Clone()
-		beanie.Name = "Beanie"
-		beanie.Size = Vector3.new(1.35, 0.6, 1.35)
-		beanie.Color = Color3.fromRGB(200, 40, 50)
-		beanie.CFrame = head.CFrame * CFrame.new(0, 0.6, 0)
-		local beanieWeld = beanie:FindFirstChildOfClass("WeldConstraint") :: WeldConstraint
-		beanieWeld.Part0, beanieWeld.Part1 = head, beanie
-		beanie.Parent = model
+		local hatColor = pick(rng, HAT_COLORS)
+		local function hatPiece(pieceName: string, size: Vector3, offset: CFrame, color: Color3, cylinder: boolean?)
+			local piece = mask:Clone()
+			piece.Name = pieceName
+			piece.Size = size
+			piece.Color = color
+			if cylinder then
+				piece.Shape = Enum.PartType.Cylinder
+			end
+			piece.CFrame = head.CFrame * offset
+			local pieceWeld = piece:FindFirstChildOfClass("WeldConstraint") :: WeldConstraint
+			pieceWeld.Part0, pieceWeld.Part1 = head, piece
+			piece.Parent = model
+		end
+		local upright = CFrame.Angles(0, 0, math.rad(90)) -- cylinders run along X
+		local hat = pick(rng, HATS)
+		if hat == "Beanie" then
+			hatPiece("Beanie", Vector3.new(1.35, 0.6, 1.35), CFrame.new(0, 0.6, 0), hatColor)
+		elseif hat == "Cap" then
+			hatPiece("Cap", Vector3.new(1.32, 0.45, 1.32), CFrame.new(0, 0.62, 0), hatColor)
+			hatPiece("Brim", Vector3.new(1.1, 0.1, 0.7), CFrame.new(0, 0.42, -0.85), hatColor)
+		elseif hat == "TopHat" then
+			hatPiece(
+				"Brim",
+				Vector3.new(0.1, 1.8, 1.8),
+				CFrame.new(0, 0.55, 0) * upright,
+				Color3.fromRGB(25, 25, 30),
+				true
+			)
+			hatPiece(
+				"Crown",
+				Vector3.new(1.1, 1.15, 1.15),
+				CFrame.new(0, 1.1, 0) * upright,
+				Color3.fromRGB(25, 25, 30),
+				true
+			)
+			hatPiece("Band", Vector3.new(0.2, 1.2, 1.2), CFrame.new(0, 0.7, 0) * upright, hatColor, true)
+		elseif hat == "Bandana" then
+			hatPiece("Bandana", Vector3.new(1.33, 0.35, 1.33), CFrame.new(0, 0.5, 0), hatColor)
+			hatPiece("Knot", Vector3.new(0.35, 0.35, 0.5), CFrame.new(0, 0.45, 0.8), hatColor)
+		end
 
 		local gui = Instance.new("BillboardGui")
 		gui.Size = UDim2.fromOffset(160, 40)
@@ -140,7 +225,7 @@ local function buildThief(): (Model, Humanoid, BasePart)
 		label.Size = UDim2.fromScale(1, 1)
 		label.Font = Enum.Font.FredokaOne
 		label.TextScaled = true
-		label.Text = "😈 THIEF!"
+		label.Text = "😈 " .. thiefName
 		label.TextColor3 = Color3.fromRGB(255, 70, 70)
 		label.TextStrokeTransparency = 0
 		label.Parent = gui
@@ -199,7 +284,7 @@ local function buildThief(): (Model, Humanoid, BasePart)
 	outline.OutlineColor = Color3.fromRGB(255, 60, 60)
 	outline.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 	outline.Parent = model
-	return model, humanoid, root
+	return model, humanoid, root, thiefName
 end
 
 -- The slime a thief goes for: random, never the owner's best one, and not
@@ -444,7 +529,7 @@ local function finish(thief: Thief, outcome: string, by: Player?)
 		end
 		task.spawn(function()
 			-- Shrug and walk off.
-			thief.Humanoid.WalkSpeed = Economy.ThiefWalkSpeed
+			thief.Humanoid.WalkSpeed = Economy.ThiefWalkSpeed * thief.Speed
 			local plot = PlotService.GetPlot(owner)
 			if plot then
 				local away = thief.Root.Position - plot.CFrame.Position
@@ -472,15 +557,19 @@ local function visit(owner: Player, plot: WorldService.Plot, slot: number, lane:
 	local inside = cf:PointToWorldSpace(Vector3.new(aisleX, 3, D / 2 - 10))
 	local grabSpot = cf:PointToWorldSpace(Vector3.new(aisleX, 3, pedLocal.Z))
 	-- He sneaks in from the nearest end of the map, along the belt side.
-	local side = if cf.Position.X >= 0 then 1 else -1
+	-- Usually from the nearest end of the map, sometimes the far one.
+	local rng = Random.new()
+	local nearest = if cf.Position.X >= 0 then 1 else -1
+	local side = if rng:NextNumber() < 0.7 then nearest else -nearest
 	local laneZ = math.sign(cf.Position.Z) * (World.BeltWidth / 2 + 11 + lane)
 	local edge = Vector3.new(side * (World.MapSizeX / 2 - 12), 3, laneZ)
 
-	local model, humanoid, root = buildThief()
+	local model, humanoid, root = buildThief(rng)
 	model:PivotTo(CFrame.lookAt(edge, gateFront))
 	model.Parent = workspace
 	root:SetNetworkOwner(nil)
-	humanoid.WalkSpeed = Economy.ThiefWalkSpeed
+	local speed = rng:NextNumber(Economy.ThiefSpeedMin, Economy.ThiefSpeedMax)
+	humanoid.WalkSpeed = Economy.ThiefWalkSpeed * speed
 	local thief: Thief = {
 		Owner = owner,
 		Model = model,
@@ -489,6 +578,7 @@ local function visit(owner: Player, plot: WorldService.Plot, slot: number, lane:
 		Slot = slot,
 		Carry = nil,
 		Done = false,
+		Speed = speed,
 	}
 	local gang = thieves[owner]
 	if not gang then
@@ -555,7 +645,7 @@ local function visit(owner: Player, plot: WorldService.Plot, slot: number, lane:
 	NetService.FxTo(owner, "Thief", { Position = root.Position })
 
 	-- Run for it.
-	humanoid.WalkSpeed = Economy.ThiefCarrySpeed
+	humanoid.WalkSpeed = Economy.ThiefCarrySpeed * thief.Speed
 	-- (Locking now traps him: see the Locked handler in Init.)
 	task.spawn(function()
 		while not thief.Done do
@@ -585,7 +675,20 @@ local function raid(owner: Player)
 	end
 	local taken: { [number]: boolean } = {}
 	local slots: { number } = {}
-	for _ = 1, Economy.ThievesPerRaid do
+	local rng = Random.new()
+	local total = 0
+	for _, weight in Economy.ThiefGangWeights do
+		total += weight
+	end
+	local roll, gangSize = rng:NextNumber(0, total), 1
+	for size, weight in Economy.ThiefGangWeights do
+		roll -= weight
+		if roll <= 0 then
+			gangSize = size
+			break
+		end
+	end
+	for _ = 1, gangSize do
 		local slot = pickSlot(owner, taken)
 		if slot then
 			taken[slot] = true
@@ -610,8 +713,12 @@ local function raid(owner: Player)
 		Text = "Thieves are coming! Lock your base right now.",
 		Urgent = true,
 	})
+	local delay = 0
 	for index, slot in slots do
-		task.delay((index - 1) * Economy.ThiefRaidSpacing, function()
+		if index > 1 then
+			delay += rng:NextNumber(Economy.ThiefSpacingMin, Economy.ThiefSpacingMax)
+		end
+		task.delay(delay, function()
 			if owner.Parent and thieves[owner] then
 				visit(owner, plot, slot, (index - 1) * 4)
 			end
