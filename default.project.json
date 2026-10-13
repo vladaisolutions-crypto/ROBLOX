@@ -60,7 +60,7 @@
           ],
           "Position": [
             0,
-            -2,
+            -2.05,
             0
           ],
           "Color": [
@@ -68,7 +68,7 @@
             0.75,
             0.33
           ],
-          "Material": "Grass",
+          "Material": "Ground",
           "TopSurface": "Smooth",
           "BottomSurface": "Smooth"
         }
