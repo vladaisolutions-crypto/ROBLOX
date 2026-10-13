@@ -55,7 +55,7 @@ local Economy = {
 	BonkForce = 75,
 	BonkForceGolden = 115,
 	BonkLift = 0.6, -- upward launch as a fraction of the force
-	BonkHitDelay = 0.22, -- seconds from click to contact, matching the swing
+	BonkHitDelay = 0.28, -- seconds from click to contact, matching BatSwing.ContactTime
 	BonkStunSeconds = 2,
 
 	-- NPC thief (ThiefService): visits each player every few minutes.
