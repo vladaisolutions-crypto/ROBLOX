@@ -6,6 +6,7 @@
 -- If he reaches the edge, the slime is gone (its stored cash is paid out).
 -- He never takes the owner's best slime.
 
+local Debris = game:GetService("Debris")
 local PathfindingService = game:GetService("PathfindingService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -20,19 +21,35 @@ local ANIMATIONS: { [string]: string } = {
 }
 
 -- What he says (speech bubble over his head).
-local LINES: { [string]: { string } } = {
+local LINES: { [string]: { { Text: string, Sound: string } } } = {
 	Arrive = {
-		"Heh heh heh... 😏",
-		"Ooh, what a nice base!",
-		"Shhh... nobody look!",
-		"Slimes, slimes, slimes... 🤑",
+		{ Text = "Heh heh heh... 😏", Sound = "ThiefArrive1" },
+		{ Text = "Ooh, what a nice base!", Sound = "ThiefArrive2" },
 	},
-	Sneak = { "Tiptoe, tiptoe... 🤫", "Nobody's home... right?", "Just looking! 👀" },
-	Grab = { "YOINK! 😈", "Mine now!", "Shiny! Thanks! ✨", "Ooh, this one's heavy!" },
-	Run = { "Can't catch me! 😜", "Too slow!", "Bye bye slime! 👋", "Nyeh nyeh! 😝", "Catch me if you can!" },
-	Locked = { "Aww, it's locked! 😤", "Hey! No fair! 😠", "Next time... 😒" },
-	Bonked = { "OUCH! 😵", "OWWW!", "Not the bat! 😭" },
-	Escaped = { "Hehe, see ya! 💨", "Too easy! 😎" },
+	Sneak = {
+		{ Text = "Tiptoe, tiptoe... 🤫", Sound = "ThiefSneak1" },
+		{ Text = "Nobody's home... right?", Sound = "ThiefSneak2" },
+	},
+	Grab = {
+		{ Text = "YOINK! 😈", Sound = "ThiefGrab1" },
+		{ Text = "Shiny! Thanks! ✨", Sound = "ThiefGrab2" },
+	},
+	Run = {
+		{ Text = "Can't catch me! 😜", Sound = "ThiefRun1" },
+		{ Text = "Too slow!", Sound = "ThiefRun2" },
+		{ Text = "Nyeh nyeh! 😝", Sound = "ThiefRun3" },
+	},
+	Locked = {
+		{ Text = "Aww, it's locked! 😤", Sound = "ThiefLocked1" },
+		{ Text = "Hey! No fair! 😠", Sound = "ThiefLocked2" },
+	},
+	Bonked = {
+		{ Text = "OUCH! 😵", Sound = "ThiefBonked1" },
+		{ Text = "Not the bat! 😭", Sound = "ThiefBonked2" },
+	},
+	Escaped = {
+		{ Text = "Hehe, see ya! 💨", Sound = "ThiefEscaped1" },
+	},
 }
 
 local Shared = game:GetService("ReplicatedStorage").Shared
@@ -41,6 +58,7 @@ local World = require(Shared.Config.World)
 local Format = require(Shared.Util.Format)
 local SlimeBuilder = require(Shared.SlimeBuilder)
 local SlimeInfo = require(Shared.SlimeInfo)
+local Sounds = require(Shared.Config.Sounds).Ids
 
 local EconomyService = require(script.Parent.EconomyService)
 local NetService = require(script.Parent.NetService)
@@ -154,10 +172,10 @@ local function buildThief(): (Model, Humanoid, BasePart)
 		track:AdjustSpeed(speed or 1)
 	end
 	humanoid.Running:Connect(function(speed: number)
-		if speed > 11 then
+		if speed > 15 then
 			play("Run", speed / 16)
 		elseif speed > 0.5 then
-			play("Walk", speed / 9)
+			play("Walk", speed / 12)
 		else
 			play("Idle")
 		end
@@ -209,7 +227,20 @@ local function say(thief: Thief, kind: string)
 	if not lines or not head or not head:IsA("BasePart") then
 		return
 	end
-	local text = lines[math.random(1, #lines)]
+	local line = lines[math.random(1, #lines)]
+	local text = line.Text
+	-- His voice, from his head so you hear where he is.
+	local soundId = Sounds[line.Sound]
+	if soundId and soundId ~= "" then
+		local voice = Instance.new("Sound")
+		voice.SoundId = soundId
+		voice.Volume = 1.2
+		voice.RollOffMinDistance = 12
+		voice.RollOffMaxDistance = 110
+		voice.Parent = head
+		voice:Play()
+		Debris:AddItem(voice, 4)
+	end
 	local bubble = thief.Bubble
 	if not bubble or not bubble.Parent then
 		local gui = Instance.new("BillboardGui")
