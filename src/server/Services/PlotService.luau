@@ -37,6 +37,8 @@ type LockState = { EndsAt: number, ReadyAt: number }
 local ownerOf: { [Plot]: Player } = {}
 local plotOf: { [Player]: Plot } = {}
 local rendered: { [Player]: { [number]: Model } } = {}
+local mergeable: { [Player]: { number } } = {}
+local mergeHinted: { [Player]: { [string]: boolean } } = {}
 local carried: { [Player]: { [number]: boolean } } = {}
 local locks: { [Player]: LockState } = {}
 
@@ -202,13 +204,71 @@ function PlotService.Render(player: Player)
 			models[slot] = newModel
 		end
 	end
-	-- Which slimes can merge right now (the owner sees a MERGE prompt).
+	-- Which slimes can merge right now: the owner sees a MERGE prompt, the
+	-- pedestal sparkles, and the first time a set appears they get a hint.
+	local canMerge: { number } = {}
 	for slot, model in models do
 		local prompt = model.PrimaryPart and model.PrimaryPart:FindFirstChild("MergePrompt")
+		local able = EconomyService.MergePartners(player, slot, carriedSlots) ~= nil
 		if prompt then
-			prompt:SetAttribute("CanMerge", EconomyService.MergePartners(player, slot, carriedSlots) ~= nil)
+			prompt:SetAttribute("CanMerge", able)
+		end
+		if able then
+			table.insert(canMerge, slot)
 		end
 	end
+	table.sort(canMerge)
+	mergeable[player] = canMerge
+	local able: { [number]: boolean } = {}
+	for _, slot in canMerge do
+		able[slot] = true
+	end
+	for slot, pedestal in plot.Pedestals do
+		local sparkle = pedestal:FindFirstChild("MergeSparkle")
+		if able[slot] and not sparkle then
+			local emitter = Instance.new("ParticleEmitter")
+			emitter.Name = "MergeSparkle"
+			emitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+			emitter.Color = ColorSequence.new(Color3.fromRGB(255, 230, 90), Color3.fromRGB(190, 120, 255))
+			emitter.LightEmission = 1
+			emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.6), NumberSequenceKeypoint.new(1, 0) })
+			emitter.Lifetime = NumberRange.new(0.8, 1.4)
+			emitter.Rate = 14
+			emitter.Speed = NumberRange.new(2, 4)
+			emitter.SpreadAngle = Vector2.new(60, 60)
+			emitter.EmissionDirection = Enum.NormalId.Right -- the pedestal cylinder's X axis points up
+			emitter.Parent = pedestal
+		elseif not able[slot] and sparkle then
+			sparkle:Destroy()
+		end
+	end
+	-- Hint once per kind of set per session.
+	local seen = mergeHinted[player]
+	if not seen then
+		seen = {}
+		mergeHinted[player] = seen
+	end
+	for _, slot in canMerge do
+		local slotData = EconomyService.GetSlot(player, slot)
+		if slotData then
+			local key = slotData.Id .. "|" .. slotData.Mutation .. "|" .. (slotData.Tier or 1)
+			if not seen[key] then
+				seen[key] = true
+				local name = SlimeInfo.DisplayName(slotData.Id, slotData.Mutation, slotData.Tier)
+				local bigger = if (slotData.Tier or 1) >= 2 then "a COLOSSAL" else "a GIANT"
+				NetService.Notify(
+					player,
+					"✨ You have 3 " .. name .. "s! Hold R on one to MERGE them into " .. bigger .. "!",
+					"Good"
+				)
+			end
+		end
+	end
+end
+
+-- Slots whose slime can merge right now (sorted).
+function PlotService.Mergeable(player: Player): { number }
+	return mergeable[player] or {}
 end
 
 doMerge = function(player: Player, slot: number)
@@ -238,6 +298,10 @@ doMerge = function(player: Player, slot: number)
 	local merged = EconomyService.GetSlot(player, slot)
 	if not merged then
 		return
+	end
+	local mergerData = DataService.Get(player)
+	if mergerData then
+		mergerData.Stats.Merges += 1
 	end
 	local scale = SlimeInfo.Scale(merged.Tier, merged.Age)
 	local to = PlotService.SlotCFrame(player, slot, merged.Id, scale)
@@ -356,7 +420,15 @@ end
 
 local function release(player: Player)
 	local plot = plotOf[player]
+	mergeable[player] = nil
+	mergeHinted[player] = nil
 	if plot then
+		for _, pedestal in plot.Pedestals do
+			local sparkle = pedestal:FindFirstChild("MergeSparkle")
+			if sparkle then
+				sparkle:Destroy()
+			end
+		end
 		ownerOf[plot] = nil
 		plot.OwnerLabel.Text = "Empty Base"
 		plot.StatusLabel.Text = ""

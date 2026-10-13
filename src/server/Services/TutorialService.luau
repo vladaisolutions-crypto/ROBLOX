@@ -18,7 +18,7 @@ type PlayerData = DataTemplate.PlayerData
 local STEPS = {
 	"Buy a slime from the belt! Walk up to it and press E.",
 	"Your slime makes cash! Step on the green pad to collect it.",
-	"Buy more slimes to earn faster!",
+	"Buy more slimes! Get 3 of the same and MERGE them into a GIANT!",
 	"Others can steal your slimes! Step on the red pad to lock your base.",
 	"Steal from other bases (hold E) and run home. Bonk thieves with your bat!",
 }
@@ -72,12 +72,24 @@ local function update(player: Player)
 	end
 	local step = data.TutorialStep
 	local goal = if step < DONE then target(player, data) else nil
+	local text = STEPS[step]
+	-- Once the basics are done: until they have merged once, point at a
+	-- slime they can merge whenever they have a set of 3.
+	if step >= DONE and data.Stats.Merges == 0 then
+		local slots = PlotService.Mergeable(player)
+		local plot = PlotService.GetPlot(player)
+		if #slots > 0 and plot then
+			step = DONE
+			goal = plot.Pedestals[slots[1]]
+			text = "You have 3 of the same slime! Hold R on one to MERGE them into a GIANT!"
+		end
+	end
 	local sent = lastSent[player]
 	if sent and sent.Step == step and sent.Target == goal then
 		return
 	end
 	lastSent[player] = { Step = step, Target = goal }
-	NetService.SendTutorial(player, if step < DONE then step else 0, STEPS[step], goal)
+	NetService.SendTutorial(player, if goal or step < DONE then step else 0, text, goal)
 end
 
 function TutorialService.Init()

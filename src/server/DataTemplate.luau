@@ -24,6 +24,7 @@ export type PlayerData = {
 	LastOnline: number,
 	TutorialStep: number,
 	Stats: {
+		Merges: number,
 		Steals: number,
 		StolenFrom: number,
 		SlimesBought: number,
@@ -49,7 +50,7 @@ function DataTemplate.New(): PlayerData
 		Daily = { LastDay = 0, Streak = 0 },
 		LastOnline = 0,
 		TutorialStep = 1,
-		Stats = { Steals = 0, StolenFrom = 0, SlimesBought = 0, PlaySeconds = 0, RobuxSpent = 0 },
+		Stats = { Merges = 0, Steals = 0, StolenFrom = 0, SlimesBought = 0, PlaySeconds = 0, RobuxSpent = 0 },
 		Receipts = {},
 		Funnel = {},
 		Codes = {},
