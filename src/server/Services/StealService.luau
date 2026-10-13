@@ -3,7 +3,6 @@
 -- over their head (slower), and must reach their own base. The owner (or
 -- anyone) can bonk the thief with the bat to make them drop it.
 
-local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
@@ -423,18 +422,13 @@ function StealService.Bonk(attacker: Player, golden: boolean)
 	if not attackerRoot then
 		return
 	end
-	local character = attacker.Character
-	local tool = character and character:FindFirstChildOfClass("Tool")
-	if tool then
-		-- The default Animate script plays a slash when it sees this value.
-		local anim = Instance.new("StringValue")
-		anim.Name = "toolanim"
-		anim.Value = "Slash"
-		anim.Parent = tool
-		Debris:AddItem(anim, 0.2)
-	end
-
+	-- Clients play the full swing; the hit lands as the bat comes round.
 	NetService.Fx("Swing", { Attacker = attacker.UserId })
+	task.wait(Economy.BonkHitDelay)
+	attackerRoot = rootOf(attacker)
+	if not attackerRoot then
+		return
+	end
 
 	local range = if golden then Economy.BonkRangeGolden else Economy.BonkRange
 	local force = if golden then Economy.BonkForceGolden else Economy.BonkForce

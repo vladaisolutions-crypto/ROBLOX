@@ -55,6 +55,7 @@ local Economy = {
 	BonkForce = 75,
 	BonkForceGolden = 115,
 	BonkLift = 0.6, -- upward launch as a fraction of the force
+	BonkHitDelay = 0.14, -- seconds from click to contact, matching the swing
 	BonkStunSeconds = 2,
 
 	-- Growth: slimes grow while they sit in a base, up to double income

@@ -260,6 +260,90 @@ local function characterOf(userId: any): Model?
 end
 
 -- Bat swing: the barrel trail streaks and the air whooshes.
+-- A big baseball swing, played on every client by bending the attacker's
+-- right shoulder and waist joints (C0, which the Animator leaves alone):
+-- wind up over the right shoulder, whip across the body, follow through.
+-- Keys: time, arm yaw, arm pitch, waist twist (degrees, torso space).
+local SWING_KEYS = {
+	{ 0, 0, 0, 0 },
+	{ 0.09, -105, 35, -35 },
+	{ 0.19, 70, -5, 40 },
+	{ 0.32, 100, -20, 50 },
+	{ 0.6, 0, 0, 0 },
+}
+local SWING_LENGTH = 0.6
+local restC0: { [Motor6D]: CFrame } = setmetatable({}, { __mode = "k" }) :: any
+local swingToken: { [Model]: number } = setmetatable({}, { __mode = "k" }) :: any
+
+local function swingPose(t: number): (number, number, number)
+	for i = 1, #SWING_KEYS - 1 do
+		local a, b = SWING_KEYS[i], SWING_KEYS[i + 1]
+		if t <= b[1] then
+			local k = (t - a[1]) / (b[1] - a[1])
+			k = k * k * (3 - 2 * k) -- smoothstep
+			return a[2] + (b[2] - a[2]) * k, a[3] + (b[3] - a[3]) * k, a[4] + (b[4] - a[4]) * k
+		end
+	end
+	return 0, 0, 0
+end
+
+local function findMotor(character: Model, names: { string }): Motor6D?
+	for _, name in names do
+		local motor = character:FindFirstChild(name, true)
+		if motor and motor:IsA("Motor6D") then
+			return motor
+		end
+	end
+	return nil
+end
+
+local function swingAnimation(character: Model)
+	local shoulder = findMotor(character, { "RightShoulder", "Right Shoulder" })
+	local waist = findMotor(character, { "Waist", "RootJoint" })
+	if not shoulder then
+		return
+	end
+	local motors: { Motor6D } = { shoulder }
+	if waist then
+		table.insert(motors, waist)
+	end
+	for _, motor in motors do
+		if not restC0[motor] then
+			restC0[motor] = motor.C0
+		end
+	end
+	local token = (swingToken[character] or 0) + 1
+	swingToken[character] = token
+	local start = os.clock()
+	local connection
+	connection = RunService.RenderStepped:Connect(function()
+		local t = os.clock() - start
+		if swingToken[character] ~= token or not shoulder.Parent then
+			connection:Disconnect()
+			return
+		end
+		if t >= SWING_LENGTH then
+			connection:Disconnect()
+			for _, motor in motors do
+				motor.C0 = restC0[motor]
+				restC0[motor] = nil
+			end
+			return
+		end
+		local yaw, pitch, twist = swingPose(t)
+		-- Rotate in the parent part's space, about the joint itself.
+		local rest = restC0[shoulder]
+		shoulder.C0 = CFrame.new(rest.Position)
+			* CFrame.Angles(0, math.rad(yaw), 0)
+			* CFrame.Angles(math.rad(pitch), 0, 0)
+			* rest.Rotation
+		if waist then
+			local waistRest = restC0[waist]
+			waist.C0 = CFrame.new(waistRest.Position) * CFrame.Angles(0, math.rad(twist), 0) * waistRest.Rotation
+		end
+	end)
+end
+
 local function onSwing(data: { [string]: any })
 	local character = characterOf(data.Attacker)
 	local root = character and character:FindFirstChild("HumanoidRootPart")
@@ -269,11 +353,14 @@ local function onSwing(data: { [string]: any })
 	if (root.Position - camera.CFrame.Position).Magnitude > 120 then
 		return
 	end
-	play(Sounds.Whoosh, root.Position, 0.6, 0.9 + math.random() * 0.25)
+	swingAnimation(character)
+	task.delay(0.08, function()
+		play(Sounds.Whoosh, root.Position, 0.6, 0.9 + math.random() * 0.25)
+	end)
 	local trail = character:FindFirstChild("SwingTrail", true)
 	if trail and trail:IsA("Trail") then
 		trail.Enabled = true
-		task.delay(0.35, function()
+		task.delay(0.4, function()
 			trail.Enabled = false
 		end)
 	end
