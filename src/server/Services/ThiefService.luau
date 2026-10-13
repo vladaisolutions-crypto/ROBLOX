@@ -50,6 +50,11 @@ local LINES: { [string]: { { Text: string, Sound: string } } } = {
 	Escaped = {
 		{ Text = "Hehe, see ya! 💨", Sound = "ThiefEscaped1" },
 	},
+	Shove = {
+		{ Text = "Back off! 😠", Sound = "" },
+		{ Text = "Outta my way!", Sound = "" },
+		{ Text = "Shoo! 👋", Sound = "" },
+	},
 }
 
 local Shared = game:GetService("ReplicatedStorage").Shared
@@ -77,13 +82,21 @@ type Thief = {
 	Done: boolean,
 	Bubble: TextLabel?,
 	Speed: number, -- this thief's speed multiplier
+	LastShove: number,
 }
 
 local ThiefService = {}
 
 -- The thieves raiding each player's base right now (a raid is a small gang).
 local thieves: { [Player]: { Thief } } = {}
-local nextVisit: { [Player]: number } = {}
+local checkRaidOver: () -> ()
+
+-- The server-wide raid: when the next one starts, and the tally of the
+-- current one (thieves still to arrive, caught, escaped, turned away).
+local nextRaidAt = os.clock() + Economy.ThiefFirstDelay
+local raidActive = false
+local raidPending = 0
+local raidStats = { Caught = 0, Escaped = 0, Stopped = 0 }
 
 local function randomInterval(): number
 	return Random.new():NextNumber(Economy.ThiefMinInterval, Economy.ThiefMaxInterval)
@@ -456,6 +469,30 @@ local function poof(thief: Thief)
 end
 
 -- End a visit. `outcome`: "Bonked", "Locked", "Escaped" or "Cancelled".
+-- The raid ends once every thief has arrived and is gone.
+checkRaidOver = function()
+	for owner, gang in thieves do
+		if #gang == 0 then
+			thieves[owner] = nil
+		end
+	end
+	if not raidActive or raidPending > 0 or next(thieves) ~= nil then
+		return
+	end
+	raidActive = false
+	nextRaidAt = os.clock() + randomInterval()
+	local caught, escaped = raidStats.Caught, raidStats.Escaped
+	NetService.Announce(
+		string.format(
+			"🛡️ Raid over! %d thie%s caught, %d got away.",
+			caught,
+			if caught == 1 then "f" else "ves",
+			escaped
+		),
+		if escaped == 0 then Color3.fromRGB(120, 255, 140) else Color3.fromRGB(255, 200, 80)
+	)
+end
+
 local function finish(thief: Thief, outcome: string, by: Player?)
 	if thief.Done then
 		return
@@ -467,12 +504,18 @@ local function finish(thief: Thief, outcome: string, by: Player?)
 		if index then
 			table.remove(gang, index)
 		end
-		-- The next raid is scheduled once the whole gang is gone.
 		if #gang == 0 then
 			thieves[thief.Owner] = nil
-			nextVisit[thief.Owner] = os.clock() + randomInterval()
 		end
 	end
+	if outcome == "Bonked" then
+		raidStats.Caught += 1
+	elseif outcome == "Escaped" then
+		raidStats.Escaped += 1
+	elseif outcome == "Locked" then
+		raidStats.Stopped += 1
+	end
+	task.defer(checkRaidOver)
 	local owner = thief.Owner
 	local carrying = thief.Carry ~= nil
 	if thief.Carry then
@@ -579,6 +622,7 @@ local function visit(owner: Player, plot: WorldService.Plot, slot: number, lane:
 		Carry = nil,
 		Done = false,
 		Speed = speed,
+		LastShove = 0,
 	}
 	local gang = thieves[owner]
 	if not gang then
@@ -667,28 +711,32 @@ local function visit(owner: Player, plot: WorldService.Plot, slot: number, lane:
 end
 
 -- A raid: a gang of thieves, each after a different slime, a few seconds apart.
-local function raid(owner: Player)
-	local plot = PlotService.GetPlot(owner)
-	if not plot or PlotService.IsLocked(owner) then
-		nextVisit[owner] = os.clock() + randomInterval()
-		return
-	end
-	local taken: { [number]: boolean } = {}
-	local slots: { number } = {}
-	local rng = Random.new()
+-- A random gang size for one base.
+local function gangSize(rng: Random): number
 	local total = 0
 	for _, weight in Economy.ThiefGangWeights do
 		total += weight
 	end
-	local roll, gangSize = rng:NextNumber(0, total), 1
+	local roll = rng:NextNumber(0, total)
 	for size, weight in Economy.ThiefGangWeights do
 		roll -= weight
 		if roll <= 0 then
-			gangSize = size
-			break
+			return size
 		end
 	end
-	for _ = 1, gangSize do
+	return 1
+end
+
+-- Sends a gang of up to `size` thieves at one base. Returns how many.
+local function raid(owner: Player, size: number): number
+	local plot = PlotService.GetPlot(owner)
+	if not plot then
+		return 0
+	end
+	local taken: { [number]: boolean } = {}
+	local slots: { number } = {}
+	local rng = Random.new()
+	for _ = 1, size do
 		local slot = pickSlot(owner, taken)
 		if slot then
 			taken[slot] = true
@@ -696,15 +744,14 @@ local function raid(owner: Player)
 		end
 	end
 	if #slots == 0 then
-		nextVisit[owner] = os.clock() + randomInterval()
-		return
+		return 0
 	end
-	thieves[owner] = {}
+	thieves[owner] = thieves[owner] or {}
 	NetService.FxTo(owner, "Thief", {})
 	NetService.Notify(
 		owner,
 		if #slots > 1
-			then "😈 " .. #slots .. " THIEVES are sneaking to your base! Bonk them or lock it!"
+			then "😈 " .. #slots .. " THIEVES are coming for your base! Bonk them or lock it!"
 			else "😈 A THIEF is sneaking to your base! Bonk him or lock it!",
 		"Bad"
 	)
@@ -713,16 +760,104 @@ local function raid(owner: Player)
 		Text = "Thieves are coming! Lock your base right now.",
 		Urgent = true,
 	})
-	local delay = 0
+	local delay = rng:NextNumber(0, 2)
 	for index, slot in slots do
 		if index > 1 then
 			delay += rng:NextNumber(Economy.ThiefSpacingMin, Economy.ThiefSpacingMax)
 		end
+		raidPending += 1
 		task.delay(delay, function()
+			raidPending -= 1
 			if owner.Parent and thieves[owner] then
 				visit(owner, plot, slot, (index - 1) * 4)
+			else
+				checkRaidOver()
 			end
 		end)
+	end
+	return #slots
+end
+
+-- A server-wide raid: every base with enough slimes gets a gang, up to
+-- RaidMaxThieves in total, and the whole server is warned.
+local function startRaid()
+	local rng = Random.new()
+	local owners = {}
+	for _, player in Players:GetPlayers() do
+		if PlotService.GetPlot(player) then
+			table.insert(owners, player)
+		end
+	end
+	-- Shuffle so the cap doesn't always favour the same bases.
+	for i = #owners, 2, -1 do
+		local j = rng:NextInteger(1, i)
+		owners[i], owners[j] = owners[j], owners[i]
+	end
+	raidActive = true
+	raidPending = 0
+	raidStats = { Caught = 0, Escaped = 0, Stopped = 0 }
+	local budget = Economy.RaidMaxThieves
+	local sent = 0
+	for _, owner in owners do
+		if budget <= 0 then
+			break
+		end
+		local n = raid(owner, math.min(gangSize(rng), budget))
+		budget -= n
+		sent += n
+	end
+	if sent == 0 then
+		raidActive = false
+		nextRaidAt = os.clock() + 30 -- nobody has enough slimes yet; check again soon
+		return
+	end
+	NetService.Announce(
+		string.format("🚨 THIEF RAID! %d thieves are coming for your slimes! Defend your bases!", sent),
+		Color3.fromRGB(255, 70, 70)
+	)
+end
+
+-- Thieves fight back: a player right in front of one may get shoved over.
+local function shoveCheck()
+	local now = os.clock()
+	for _, gang in thieves do
+		for _, thief in gang do
+			if not thief.Done and thief.Model.Parent and now - thief.LastShove > Economy.ThiefShoveCooldown then
+				local look = thief.Root.CFrame.LookVector
+				for _, player in Players:GetPlayers() do
+					local character = player.Character
+					local root = character and character:FindFirstChild("HumanoidRootPart")
+					if root and root:IsA("BasePart") then
+						local offset = root.Position - thief.Root.Position
+						local flatOffset = Vector3.new(offset.X, 0, offset.Z)
+						if
+							flatOffset.Magnitude < Economy.ThiefShoveRange
+							and flatOffset.Magnitude > 0.1
+							and look:Dot(flatOffset.Unit) > 0.3
+						then
+							thief.LastShove = now
+							if math.random() < Economy.ThiefShoveChance then
+								say(thief, "Shove")
+								local push = flatOffset.Unit * Economy.ThiefShoveForce
+								StealService.Knock(
+									player,
+									push + Vector3.new(0, Economy.ThiefShoveForce * 0.5, 0),
+									Economy.ThiefShoveStun
+								)
+								NetService.Fx("Bonk", {
+									Position = root.Position + Vector3.new(0, 2, 0),
+									Victim = player.UserId,
+									Dropped = false,
+									Golden = false,
+									Stun = Economy.ThiefShoveStun,
+								})
+							end
+							break
+						end
+					end
+				end
+			end
+		end
 	end
 end
 
@@ -792,32 +927,28 @@ function ThiefService.Init()
 			end
 		end
 	end)
-	Players.PlayerAdded:Connect(function(player)
-		nextVisit[player] = os.clock() + Economy.ThiefFirstDelay
-	end)
-	for _, player in Players:GetPlayers() do
-		nextVisit[player] = os.clock() + Economy.ThiefFirstDelay
-	end
 	Players.PlayerRemoving:Connect(function(player)
 		for _, thief in table.clone(thieves[player] or {} :: { Thief }) do
 			finish(thief, "Cancelled")
 		end
 		thieves[player] = nil
-		nextVisit[player] = nil
+		task.defer(checkRaidOver)
 	end)
 end
 
 function ThiefService.Start()
 	task.spawn(function()
 		while true do
-			task.wait(5)
-			local now = os.clock()
-			for player, at in nextVisit do
-				if now >= at and not thieves[player] and player.Parent then
-					nextVisit[player] = now + 9999 -- set properly when the visit ends
-					task.spawn(raid, player)
-				end
+			task.wait(2)
+			if not raidActive and os.clock() >= nextRaidAt and #Players:GetPlayers() > 0 then
+				startRaid()
 			end
+		end
+	end)
+	task.spawn(function()
+		while true do
+			task.wait(0.25)
+			shoveCheck()
 		end
 	end)
 end

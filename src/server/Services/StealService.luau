@@ -190,6 +190,14 @@ local function applySpeed(player: Player)
 	end
 end
 
+-- Knock a player down (ragdoll + launch), e.g. a thief shoving them.
+function StealService.Knock(target: Player, velocity: Vector3, stun: number)
+	task.spawn(function()
+		ragdoll(target, stun)
+		Remotes.Get("Knockback"):FireClient(target, velocity, stun)
+	end)
+end
+
 function StealService.IsCarrying(player: Player): boolean
 	return carries[player] ~= nil
 end

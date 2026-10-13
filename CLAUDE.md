@@ -14,7 +14,7 @@ Read `docs/STRATEGY.md` for the why, and `docs/SETUP.md` for how it gets to Robl
   - Receipts: `MonetizationService` only returns PurchaseGranted after the grant is saved.
 - `src/client/` → StarterPlayerScripts.Client: `Store` (merged server state), `UI/` (Kit, Hud, Panels), `Controllers.luau`, `Effects.luau` (juice from the `Fx` remote: merge, grow, cash, rare, pass offers; jelly wobble; Haunted Rain).
 - Slimes grow (`SlotData.Age`) and merge (`SlotData.Tier`; `EconomyService.Merge`, recipes via `Slimes.MergeInto`). Income/size always go through `SlimeInfo` with tier and age.
-- `ThiefService`: an NPC thief visits each player every few minutes (tuning in `Economy.Thief*`); bat hits reach him through `StealService.Swung`.
+- `ThiefService`: server-wide thief raids every few minutes, a gang per base (tuning in `Economy.Thief*`/`Raid*`); bat hits reach thieves through `StealService.Swung`, thieves shove players via `StealService.Knock`.
 - Avatars use AnimationConstraint joints (not Motor6D); joint code (swing, ragdoll) must handle both.
 - Rojo ignores `Position` on parts in `default.project.json`; place parts in code (see `WorldService.Init`).
 - The map is generated at runtime by `WorldService`. Slime models are built from parts by `SlimeBuilder`, so there are no asset IDs.

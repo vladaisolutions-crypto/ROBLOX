@@ -58,17 +58,25 @@ local Economy = {
 	BonkHitDelay = 0.28, -- seconds from click to contact, matching BatSwing.ContactTime
 	BonkStunSeconds = 2,
 
-	-- NPC thief (ThiefService): visits each player every few minutes.
-	ThiefFirstDelay = 150, -- seconds after joining before the first raid
-	ThiefMinInterval = 120, -- seconds between raids (random in this range)
-	ThiefMaxInterval = 300,
+	-- Thief raids (ThiefService): every few minutes a wave of thieves hits
+	-- every base on the server at once; anyone can bonk any thief.
+	ThiefFirstDelay = 150, -- seconds after the server starts before the first raid
+	ThiefMinInterval = 180, -- seconds between raids (random in this range)
+	ThiefMaxInterval = 330,
 	ThiefMinSlimes = 3, -- only bases with at least this many (they skip the best one)
-	-- Gang size per raid: weight for 1, 2, 3, 4 thieves (each after a different slime).
-	ThiefGangWeights = { 25, 40, 25, 10 },
+	-- Thieves per base: weight for 1, 2, 3, 4 (each after a different slime).
+	ThiefGangWeights = { 10, 40, 35, 15 },
+	RaidMaxThieves = 16, -- cap for the whole server per raid
+	-- Thieves fight back: a player right in front of one may get shoved over.
+	ThiefShoveRange = 5,
+	ThiefShoveChance = 0.5,
+	ThiefShoveCooldown = 3,
+	ThiefShoveForce = 30,
+	ThiefShoveStun = 1.2,
 	ThiefSpacingMin = 1.5, -- seconds between thieves in a raid (random in this range)
 	ThiefSpacingMax = 5,
 	ThiefWalkSpeed = 14, -- sneaking in
-	ThiefCarrySpeed = 16.5, -- running away; players walk 18, so you can just catch him
+	ThiefCarrySpeed = 17, -- running away; players walk 18, so it's a real chase
 	ThiefSpeedMin = 0.9, -- each thief's speed is scaled by a random amount in this range
 	ThiefSpeedMax = 1.08,
 	ThiefGrabSeconds = 2,
