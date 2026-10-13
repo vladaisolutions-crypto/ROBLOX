@@ -388,8 +388,8 @@ local function buildPlot(index: number, cframe: CFrame): Plot
 		})
 		part({
 			Name = "PedestalRing",
-			Size = Vector3.new(0.3, 6.5, 6.5),
-			CFrame = at(x, floorY + 1.45, z) * CFrame.Angles(0, 0, math.rad(90)),
+			Size = Vector3.new(0.4, 6.5, 6.5),
+			CFrame = at(x, floorY + 1, z) * CFrame.Angles(0, 0, math.rad(90)), -- a band round the side, below the top (no z-fighting)
 			Color = color,
 			Material = Enum.Material.Neon,
 			Shape = Enum.PartType.Cylinder,

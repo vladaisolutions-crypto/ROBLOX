@@ -5,6 +5,7 @@
 
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 
 local Shared = game:GetService("ReplicatedStorage").Shared
 local Economy = require(Shared.Config.Economy)
@@ -36,6 +37,95 @@ local StealService = {}
 
 local carries: { [Player]: Carry } = {}
 local lastBonk: { [Player]: number } = {}
+-- Characters currently ragdolled, with a token so a newer bonk wins.
+local ragdolled: { [Model]: number } = setmetatable({}, { __mode = "k" }) :: any
+
+-- Ragdoll a character for `seconds`: every joint except the root becomes a
+-- limited ball socket and the limbs collide, so a bonked player flops and
+-- tumbles for real (and everyone sees it). The parts are handed back to the
+-- victim's client, which owns its character physics and applies the launch.
+local function ragdoll(target: Player, seconds: number): boolean
+	local character = target.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not character or not humanoid or not root or not root:IsA("BasePart") or humanoid.Health <= 0 then
+		return false
+	end
+	humanoid.RequiresNeck = false
+	humanoid.BreakJointsOnDeath = false
+	local token = (ragdolled[character] or 0) + 1
+	ragdolled[character] = token
+
+	for _, motor in character:GetDescendants() do
+		if motor:IsA("Motor6D") and motor.Part0 and motor.Part1 and motor.Part0 ~= root and motor.Part1 ~= root then
+			local part0, part1 = motor.Part0 :: BasePart, motor.Part1 :: BasePart
+			local socket = part1:FindFirstChild("RagdollSocket" .. motor.Name)
+			if not socket then
+				local a0 = Instance.new("Attachment")
+				a0.Name = "RagdollA" .. motor.Name
+				a0.CFrame = motor.C0
+				a0.Parent = part0
+				local a1 = Instance.new("Attachment")
+				a1.Name = "RagdollB" .. motor.Name
+				a1.CFrame = motor.C1
+				a1.Parent = part1
+				local ball = Instance.new("BallSocketConstraint")
+				ball.Name = "RagdollSocket" .. motor.Name
+				ball.Attachment0, ball.Attachment1 = a0, a1
+				ball.LimitsEnabled = true
+				ball.UpperAngle = if motor.Name:find("Neck") then 35 else 70
+				ball.TwistLimitsEnabled = true
+				ball.TwistLowerAngle, ball.TwistUpperAngle = -45, 45
+				ball.Restitution = 0.1
+				ball.Enabled = false
+				ball.Parent = part1
+				local noCollide = Instance.new("NoCollisionConstraint")
+				noCollide.Part0, noCollide.Part1 = part0, part1
+				noCollide.Parent = part1
+				socket = ball
+			end
+			if socket and socket:IsA("BallSocketConstraint") then
+				socket.Enabled = true
+			end
+			motor.Enabled = false
+		end
+	end
+	for _, part in character:GetDescendants() do
+		if part:IsA("BasePart") and part ~= root and not part:FindFirstAncestorOfClass("Accessory") then
+			if part:GetAttribute("RagdollCollide") == nil then
+				part:SetAttribute("RagdollCollide", part.CanCollide)
+			end
+			part.CanCollide = true
+		end
+	end
+	-- Splitting the joints makes new assemblies; give them all to the victim.
+	RunService.Heartbeat:Wait()
+	for _, part in character:GetDescendants() do
+		if part:IsA("BasePart") and not part.Anchored then
+			pcall(part.SetNetworkOwner, part, target)
+		end
+	end
+
+	task.delay(seconds, function()
+		if ragdolled[character] ~= token or not character.Parent then
+			return
+		end
+		ragdolled[character] = nil
+		for _, item in character:GetDescendants() do
+			if item:IsA("Motor6D") then
+				item.Enabled = true
+			elseif item:IsA("BallSocketConstraint") and item.Name:sub(1, 13) == "RagdollSocket" then
+				item.Enabled = false
+			elseif item:IsA("BasePart") then
+				local collide = item:GetAttribute("RagdollCollide")
+				if type(collide) == "boolean" then
+					item.CanCollide = collide
+				end
+			end
+		end
+	end)
+	return true
+end
 
 local function rootOf(player: Player): BasePart?
 	local character = player.Character
@@ -357,8 +447,11 @@ function StealService.Bonk(attacker: Player, golden: boolean)
 			if distance <= range and inFront then
 				local direction = Vector3.new(offset.X, 0, offset.Z)
 				direction = if direction.Magnitude > 0.01 then direction.Unit else attackerRoot.CFrame.LookVector
-				Remotes.Get("Knockback")
-					:FireClient(target, direction * force + Vector3.new(0, force * 0.45, 0), Economy.BonkStunSeconds)
+				local launch = direction * force + Vector3.new(0, force * Economy.BonkLift, 0)
+				task.spawn(function()
+					ragdoll(target, Economy.BonkStunSeconds)
+					Remotes.Get("Knockback"):FireClient(target, launch, Economy.BonkStunSeconds)
+				end)
 				NetService.Fx("Bonk", {
 					Position = targetRoot.Position + Vector3.new(0, 2, 0),
 					Attacker = attacker.UserId,

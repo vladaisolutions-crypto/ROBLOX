@@ -97,6 +97,7 @@ local function animateSlimes()
 end
 
 -- The server tells us when we get bonked; we own our character's physics.
+local knockToken = 0
 local function listenKnockback()
 	Remotes.Get("Knockback").OnClientEvent:Connect(function(velocity: Vector3, stun: number)
 		local character = player.Character
@@ -105,16 +106,38 @@ local function listenKnockback()
 		if not root or not root:IsA("BasePart") or not humanoid then
 			return
 		end
-		humanoid:ChangeState(Enum.HumanoidStateType.FallingDown)
-		root.AssemblyLinearVelocity = velocity
-		-- Cartoon tumble: spin head over heels away from the hit.
+		-- The server has turned our joints into ragdoll sockets. Go limp and
+		-- launch every body part, spinning head over heels away from the hit.
+		knockToken += 1
+		local token = knockToken
+		humanoid.AutoRotate = false
+		humanoid:ChangeState(Enum.HumanoidStateType.Physics)
 		local flat = Vector3.new(velocity.X, 0, velocity.Z)
 		local axis = if flat.Magnitude > 0.01 then flat.Unit:Cross(Vector3.yAxis) else Vector3.xAxis
-		root.AssemblyAngularVelocity = -axis * 14 + Vector3.new(0, (math.random() - 0.5) * 10, 0)
-		task.delay(stun, function()
-			if humanoid.Parent and humanoid.Health > 0 then
-				humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+		local spin = -axis * 12 + Vector3.new(0, (math.random() - 0.5) * 8, 0)
+		local function launch()
+			for _, part in character:GetDescendants() do
+				if part:IsA("BasePart") and not part.Anchored then
+					part.AssemblyLinearVelocity = velocity
+					part.AssemblyAngularVelocity = spin
+				end
 			end
+		end
+		launch()
+		-- Joint changes can land a frame later; push again once they have.
+		RunService.Heartbeat:Wait()
+		launch()
+		task.delay(stun, function()
+			if token ~= knockToken or not humanoid.Parent or humanoid.Health <= 0 then
+				return
+			end
+			-- Stand back up where we landed, facing the way we flew.
+			local yaw = if flat.Magnitude > 0.01 then math.atan2(-flat.X, -flat.Z) else 0
+			root.AssemblyLinearVelocity = Vector3.zero
+			root.AssemblyAngularVelocity = Vector3.zero
+			root.CFrame = CFrame.new(root.Position + Vector3.new(0, 2.5, 0)) * CFrame.Angles(0, yaw, 0)
+			humanoid.AutoRotate = true
+			humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
 		end)
 	end)
 end

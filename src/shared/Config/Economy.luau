@@ -52,9 +52,10 @@ local Economy = {
 	BonkCooldown = 0.9,
 	BonkRange = 9,
 	BonkRangeGolden = 13,
-	BonkForce = 70,
-	BonkForceGolden = 110,
-	BonkStunSeconds = 1.6,
+	BonkForce = 75,
+	BonkForceGolden = 115,
+	BonkLift = 0.6, -- upward launch as a fraction of the force
+	BonkStunSeconds = 2,
 
 	-- Growth: slimes grow while they sit in a base, up to double income
 	-- (and a bigger, juicier target) after GrowSeconds. Stolen slimes keep it.
