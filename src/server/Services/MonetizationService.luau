@@ -8,6 +8,7 @@ local Players = game:GetService("Players")
 
 local Shared = game:GetService("ReplicatedStorage").Shared
 local Monetization = require(Shared.Config.Monetization)
+local SlimeInfo = require(Shared.SlimeInfo)
 local Format = require(Shared.Util.Format)
 
 local ConveyorService = require(script.Parent.ConveyorService)
@@ -35,6 +36,48 @@ local function grant(player: Player, product: Monetization.Product): boolean
 		return true
 	elseif product.Kind == "BeltSlime" and product.Rarity then
 		return ConveyorService.GrantBeltProduct(player, product.Rarity) ~= nil
+	elseif product.Kind == "Bundle" then
+		local data = DataService.Get(player)
+		if not data then
+			return false
+		end
+		if product.OneTime and data.StarterBought then
+			-- Bought again (e.g. from a stale shop): never leave it unpaid,
+			-- give its cash value instead of a second pack.
+			local amount = product.CashMinimum or 25000
+			EconomyService.AddCash(player, amount, "Robux", product.Key)
+			NetService.Notify(
+				player,
+				"You already have the " .. product.Name .. ", so here's " .. Format.Cash(amount) .. " instead!",
+				"Money"
+			)
+			return true
+		end
+		if product.CashMinimum then
+			local amount = EconomyService.IncomeMinutes(player, product.CashMinutes or 0, product.CashMinimum or 0)
+			EconomyService.AddCash(player, amount, "Robux", product.Key)
+		end
+		if product.SlimeId then
+			if not EconomyService.AddSlime(player, product.SlimeId, "", "Robux") then
+				-- Base full: never leave the purchase short, pay its value in cash.
+				local value = SlimeInfo.Price(product.SlimeId, "")
+				EconomyService.AddCash(player, value, "Robux", product.Key)
+				NetService.Notify(
+					player,
+					"Your base was full, so you got " .. Format.Cash(value) .. " instead of the slime.",
+					"Money"
+				)
+			end
+		end
+		if product.DoubleMinutes then
+			EconomyService.GiveTemporaryDouble(player, product.DoubleMinutes * 60)
+		end
+		if product.OneTime then
+			data.StarterBought = true
+		end
+		NetService.Notify(player, product.Icon .. " " .. product.Name .. " unlocked! Thanks for the support!", "Money")
+		EconomyService.PushState(player)
+		return true
 	end
 	warn("[Monetization] Unknown product kind", product.Kind)
 	return false
@@ -57,7 +100,11 @@ local function processReceipt(receipt: { [string]: any }): Enum.ProductPurchaseD
 
 	local purchaseId = tostring(receipt.PurchaseId)
 	if DataService.ClaimReceipt(data, purchaseId) then
-		return Enum.ProductPurchaseDecision.PurchaseGranted
+		-- Already granted. Only acknowledge once that grant is safely saved
+		-- (a retry after a failed save lands here).
+		return if DataService.SaveNow(player)
+			then Enum.ProductPurchaseDecision.PurchaseGranted
+			else Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 	local ok, granted = pcall(grant, player, product)
 	if not ok or not granted then

@@ -55,6 +55,21 @@ local Economy = {
 	BonkForce = 70,
 	BonkForceGolden = 110,
 	BonkStunSeconds = 1.2,
+
+	-- Growth: slimes grow while they sit in a base, up to double income
+	-- (and a bigger, juicier target) after GrowSeconds. Stolen slimes keep it.
+	GrowSeconds = 30 * 60,
+	GrowIncomeBonus = 1, -- +100% income when fully grown
+	GrowSizeBonus = 0.35, -- +35% size when fully grown
+	BigCarrySpeedFactor = 0.85, -- extra slowdown carrying a big slime
+
+	-- Merging: three identical slimes become one of the next tier.
+	MergeCount = 3,
+	MergeTiers = {
+		{ Name = "", Income = 1, Size = 1 },
+		{ Name = "Giant", Income = 3.6, Size = 1.4 },
+		{ Name = "Colossal", Income = 13, Size = 1.8 },
+	},
 }
 
 function Economy.RebirthCost(rebirths: number): number

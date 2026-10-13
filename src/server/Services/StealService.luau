@@ -25,6 +25,8 @@ type Carry = {
 	Slot: number,
 	SlimeId: string,
 	Mutation: string,
+	Tier: number?,
+	Age: number?,
 	Model: Model,
 	StartedAt: number,
 	StartPosition: Vector3,
@@ -49,8 +51,13 @@ end
 function StealService.WalkSpeed(player: Player): number
 	local boots = PassService.Has(player, "SpeedBoots")
 	local speed = if boots then Economy.WalkSpeedBoots else Economy.WalkSpeed
-	if carries[player] then
+	local carry = carries[player]
+	if carry then
 		speed *= if boots then Economy.CarrySpeedFactorBoots else Economy.CarrySpeedFactor
+		-- A big (grown or merged) slime is heavy: easier to catch.
+		if SlimeInfo.Scale(carry.Tier, carry.Age) > 1.3 then
+			speed *= Economy.BigCarrySpeedFactor
+		end
 	end
 	return speed
 end
@@ -78,13 +85,30 @@ local function finish(thief: Player, delivered: boolean, reason: string?)
 		applySpeed(thief)
 	end
 	local owner = carry.Owner
-	local name = SlimeInfo.DisplayName(carry.SlimeId, carry.Mutation)
+	local name = SlimeInfo.DisplayName(carry.SlimeId, carry.Mutation, carry.Tier)
 
 	if delivered and owner.Parent and thief.Parent then
+		-- Only move the slime if the slot still holds the one being carried.
+		local current = EconomyService.GetSlot(owner, carry.Slot)
+		if not current or current.Id ~= carry.SlimeId or current.Mutation ~= carry.Mutation then
+			PlotService.SetCarried(owner, carry.Slot, false)
+			if thief.Parent then
+				NetService.Notify(thief, "The slime got away!", "Bad")
+			end
+			return
+		end
 		local slotData = EconomyService.RemoveSlime(owner, carry.Slot)
 		PlotService.SetCarried(owner, carry.Slot, false)
 		if slotData then
-			local added = EconomyService.AddSlime(thief, slotData.Id, slotData.Mutation, "Steal")
+			local added = EconomyService.AddSlime(
+				thief,
+				slotData.Id,
+				slotData.Mutation,
+				"Steal",
+				nil,
+				slotData.Tier,
+				slotData.Age
+			)
 			-- Uncollected cash on the pedestal stays with the owner.
 			EconomyService.AddCash(owner, slotData.Stored, "Income")
 			if added then
@@ -105,7 +129,15 @@ local function finish(thief: Player, delivered: boolean, reason: string?)
 				)
 			else
 				-- Thief's base filled up during the run: give it back.
-				EconomyService.AddSlime(owner, slotData.Id, slotData.Mutation, "Returned", carry.Slot)
+				EconomyService.AddSlime(
+					owner,
+					slotData.Id,
+					slotData.Mutation,
+					"Returned",
+					carry.Slot,
+					slotData.Tier,
+					slotData.Age
+				)
 				NetService.Notify(thief, "Your base is full! The slime ran home.", "Bad")
 			end
 		end
@@ -148,14 +180,16 @@ local function startSteal(thief: Player, owner: Player, slot: number)
 		NetService.Notify(thief, "Your base is full! Sell a slime first.", "Bad")
 		return
 	end
-	local slimeCFrame = PlotService.SlotCFrame(owner, slot, slotData.Id)
+	local scale = SlimeInfo.Scale(slotData.Tier, slotData.Age)
+	local slimeCFrame = PlotService.SlotCFrame(owner, slot, slotData.Id, scale)
 	if not slimeCFrame or (slimeCFrame.Position - thiefRoot.Position).Magnitude > 14 then
 		return
 	end
 
-	local model = SlimeBuilder.Build(slotData.Id, slotData.Mutation)
+	local model = SlimeBuilder.Build(slotData.Id, slotData.Mutation, { Tier = slotData.Tier, Age = slotData.Age })
 	local root = model.PrimaryPart :: BasePart
-	local height = SlimeBuilder.HalfHeight(slotData.Id)
+	local height = SlimeBuilder.HalfHeight(slotData.Id, scale)
+	model:SetAttribute("Carried", true)
 	model:PivotTo(thiefRoot.CFrame * CFrame.new(0, 3.5 + height, 0))
 	root.Anchored = false
 	local weld = Instance.new("WeldConstraint")
@@ -169,6 +203,8 @@ local function startSteal(thief: Player, owner: Player, slot: number)
 		Slot = slot,
 		SlimeId = slotData.Id,
 		Mutation = slotData.Mutation,
+		Tier = slotData.Tier,
+		Age = slotData.Age,
 		Model = model,
 		StartedAt = os.clock(),
 		StartPosition = thiefRoot.Position,
@@ -176,7 +212,7 @@ local function startSteal(thief: Player, owner: Player, slot: number)
 	PlotService.SetCarried(owner, slot, true)
 	applySpeed(thief)
 
-	local name = SlimeInfo.DisplayName(slotData.Id, slotData.Mutation)
+	local name = SlimeInfo.DisplayName(slotData.Id, slotData.Mutation, slotData.Tier)
 	NetService.Notify(thief, "🏃 Run back to your base with " .. name .. "!", "Info")
 	NetService.Notify(owner, "⚠️ " .. thief.DisplayName .. " is stealing your " .. name .. "! BONK them!", "Bad")
 end

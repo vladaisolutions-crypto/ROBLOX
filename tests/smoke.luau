@@ -72,7 +72,34 @@ for _, def in Slimes.List do
 	end
 end
 
+-- Merge tiers and grown slimes build bigger, and merge-only slimes never
+-- appear on the belt.
+local SlimeInfo = require(Shared.SlimeInfo)
+local Economy = require(Shared.Config.Economy)
+for tier = 1, #Economy.MergeTiers do
+	local ok, err = pcall(function()
+		local model = SlimeBuilder.Build("goo", "", { Tier = tier, Age = Economy.GrowSeconds })
+		check(model:GetAttribute("Tier") == tier, "tier " .. tier .. " attribute missing")
+		check(
+			math.abs((model:GetAttribute("Scale") :: number) - SlimeInfo.Scale(tier, Economy.GrowSeconds)) < 1e-6,
+			"tier " .. tier .. " scale wrong"
+		)
+		model:Destroy()
+	end)
+	check(ok, "building tier " .. tier .. " failed: " .. tostring(err))
+end
+for _, child in workspace:GetChildren() do
+	local id = child:IsA("Model") and child:GetAttribute("SlimeId")
+	local def = id and Slimes.ById[id]
+	check(not (def and def.MergeOnly), "merge-only slime " .. tostring(id) .. " is on the belt")
+end
+check(ReplicatedStorage.Remotes:FindFirstChild("Fx") ~= nil, "Fx remote missing")
+
 if #failures > 0 then
 	error("SMOKE FAILED:\n- " .. table.concat(failures, "\n- "))
 end
-return string.format("SMOKE OK: 8 plots, %d belt slimes, %d slime models built", beltSlimes, #Slimes.List * 5)
+return string.format(
+	"SMOKE OK: 8 plots, %d belt slimes, %d slime models built, merge tiers and growth OK",
+	beltSlimes,
+	#Slimes.List * 5
+)

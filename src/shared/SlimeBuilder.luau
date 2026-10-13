@@ -21,6 +21,8 @@ local SlimeBuilder = {}
 
 export type BuildOptions = {
 	PriceText: string?, -- extra line, used on the conveyor
+	Tier: number?, -- merge tier (Giant, Colossal): bigger and worth more
+	Age: number?, -- seconds grown in a base: bigger and worth more
 }
 
 local function addPart(
@@ -218,9 +220,9 @@ local function makeLabel(parent: Instance, name: string, text: string, color: Co
 	return label
 end
 
-function SlimeBuilder.HalfHeight(slimeId: string): number
+function SlimeBuilder.HalfHeight(slimeId: string, scale: number?): number
 	local def = Slimes.ById[slimeId]
-	return BODY.Y * (if def then def.Size else 1) / 2
+	return BODY.Y * (if def then def.Size else 1) * (scale or 1) / 2
 end
 
 function SlimeBuilder.Build(slimeId: string, mutationId: string?, options: BuildOptions?): Model
@@ -228,13 +230,19 @@ function SlimeBuilder.Build(slimeId: string, mutationId: string?, options: Build
 	assert(def, "Unknown slime " .. tostring(slimeId))
 	local rarity = Rarities.ByName[def.Rarity]
 	local mutation = if mutationId and mutationId ~= "" then Mutations.ById[mutationId] else nil
-	local s = def.Size
+	local tier = if options then options.Tier else nil
+	local age = if options then options.Age else nil
+	local scale = SlimeInfo.Scale(tier, age)
+	local s = def.Size * scale
 	local bodySize = BODY * s
 
 	local model = Instance.new("Model")
 	model.Name = def.Name
 	model:SetAttribute("SlimeId", def.Id)
 	model:SetAttribute("Mutation", if mutation then mutation.Id else "")
+	model:SetAttribute("Tier", tier or 1)
+	model:SetAttribute("Scale", scale)
+	CollectionService:AddTag(model, "Slime")
 
 	local root = Instance.new("Part")
 	root.Name = "Root"
@@ -355,7 +363,7 @@ function SlimeBuilder.Build(slimeId: string, mutationId: string?, options: Build
 	makeLabel(
 		gui,
 		"Name",
-		SlimeInfo.DisplayName(def.Id, mutationId),
+		SlimeInfo.DisplayName(def.Id, mutationId, tier),
 		if mutation then mutation.Color else Color3.new(1, 1, 1),
 		1
 	)
@@ -363,7 +371,7 @@ function SlimeBuilder.Build(slimeId: string, mutationId: string?, options: Build
 	makeLabel(
 		gui,
 		"Income",
-		Format.Cash(SlimeInfo.Income(def.Id, mutationId)) .. "/s",
+		Format.Cash(SlimeInfo.Income(def.Id, mutationId, tier, age)) .. "/s",
 		Color3.fromRGB(120, 255, 120),
 		3
 	)

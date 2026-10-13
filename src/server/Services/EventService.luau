@@ -108,10 +108,17 @@ function EventService.Start()
 			if active ~= rainWasActive then
 				rainWasActive = active
 				if active then
-					NetService.Announce(
-						"🌧️ SLIME RAIN! Faster spawns and 3x luck for 2 minutes!",
-						Color3.fromRGB(120, 200, 255)
-					)
+					if EventService.SeasonalActive("Halloween") then
+						NetService.Announce(
+							"👻 HAUNTED RAIN! Ghosts in the sky, faster spawns and 3x luck for 2 minutes!",
+							Color3.fromRGB(170, 255, 200)
+						)
+					else
+						NetService.Announce(
+							"🌧️ SLIME RAIN! Faster spawns and 3x luck for 2 minutes!",
+							Color3.fromRGB(120, 200, 255)
+						)
+					end
 				end
 				broadcast()
 			end

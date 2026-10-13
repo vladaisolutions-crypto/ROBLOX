@@ -44,6 +44,15 @@ function NetService.SendEvents(player: Player, state: { [string]: any })
 end
 
 -- Registers a handler for Action:FireServer(name, payload).
+-- Visual/sound effect for everyone (`kind` + a data table).
+function NetService.Fx(kind: string, data: { [string]: any })
+	Remotes.Get("Fx"):FireAllClients(kind, data)
+end
+
+function NetService.FxTo(player: Player, kind: string, data: { [string]: any })
+	Remotes.Get("Fx"):FireClient(player, kind, data)
+end
+
 function NetService.OnAction(name: string, handler: (Player, any) -> ())
 	actionHandlers[name] = handler
 end

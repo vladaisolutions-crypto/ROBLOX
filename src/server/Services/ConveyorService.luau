@@ -21,6 +21,7 @@ local DataService = require(script.Parent.DataService)
 local EconomyService = require(script.Parent.EconomyService)
 local EventService = require(script.Parent.EventService)
 local NetService = require(script.Parent.NetService)
+local PassService = require(script.Parent.PassService)
 local PlotService = require(script.Parent.PlotService)
 local TelemetryService = require(script.Parent.TelemetryService)
 
@@ -70,7 +71,7 @@ end
 local function rollSlime(rarity: Rarities.Rarity): Slimes.SlimeDef
 	local pool = {}
 	for _, def in Slimes.List do
-		if def.Rarity == rarity.Name and eligible(def.Event) then
+		if def.Rarity == rarity.Name and eligible(def.Event) and not def.MergeOnly then
 			table.insert(pool, def)
 		end
 	end
@@ -204,6 +205,13 @@ local function buyWithCash(player: Player, entry: BeltSlime)
 	local slot = EconomyService.FreeSlot(player)
 	if not slot then
 		NetService.Notify(player, "Your base is full! Sell a slime (hold F) or get more slots.", "Bad")
+		if not PassService.Has(player, "ExtraSlots") then
+			NetService.FxTo(
+				player,
+				"Offer",
+				{ Pass = "ExtraSlots", Text = "Base full! +6 slots so you never miss a slime." }
+			)
+		end
 		return
 	end
 	if not EconomyService.SpendCash(player, entry.Price, "BuySlime", entry.SlimeId) then
@@ -369,7 +377,7 @@ function ConveyorService.GrantBeltProduct(player: Player, rarityName: string): s
 		end
 		local fallback = Slimes.List[1]
 		for _, def in Slimes.List do
-			if def.Rarity == rarityName and def.Event == nil then
+			if def.Rarity == rarityName and def.Event == nil and not def.MergeOnly then
 				fallback = def
 				break
 			end

@@ -25,17 +25,22 @@ export type Product = {
 	Description: string,
 	SuggestedPrice: number,
 	Icon: string,
-	Kind: string, -- "Cash" | "Luck" | "InstantLock" | "BeltSlime"
+	Kind: string, -- "Cash" | "Luck" | "InstantLock" | "BeltSlime" | "Bundle"
 	CashMinutes: number?, -- Cash: minutes of the buyer's current income
 	CashMinimum: number?, -- Cash: floor so new players still get value
 	Rarity: string?, -- BeltSlime: rarity tier this product buys
 	Shop: boolean, -- listed in the shop UI
+	-- Bundle: a specific slime, cash and/or a 2x cash boost, all stated up front.
+	SlimeId: string?,
+	DoubleMinutes: number?,
+	OneTime: boolean?, -- offered once per account (the Starter Pack)
+	Event: string?, -- only offered while this event runs (it really ends)
 }
 
 local Passes: { Pass } = {
 	{
 		Key = "DoubleCash",
-		Id = 0,
+		Id = 2032730441,
 		Name = "2x Cash",
 		Description = "Double all cash your slimes make. Forever.",
 		SuggestedPrice = 399,
@@ -43,7 +48,7 @@ local Passes: { Pass } = {
 	},
 	{
 		Key = "VIP",
-		Id = 0,
+		Id = 2034434429,
 		Name = "VIP",
 		Description = "1.5x cash, 4h offline earnings, VIP tag.",
 		SuggestedPrice = 249,
@@ -51,7 +56,7 @@ local Passes: { Pass } = {
 	},
 	{
 		Key = "AutoCollect",
-		Id = 0,
+		Id = 2034332421,
 		Name = "Auto Collect",
 		Description = "Cash goes straight to your wallet.",
 		SuggestedPrice = 149,
@@ -59,7 +64,7 @@ local Passes: { Pass } = {
 	},
 	{
 		Key = "ExtraSlots",
-		Id = 0,
+		Id = 2035610253,
 		Name = "+6 Slots",
 		Description = "Six more pedestals in your base.",
 		SuggestedPrice = 199,
@@ -67,7 +72,7 @@ local Passes: { Pass } = {
 	},
 	{
 		Key = "LongLock",
-		Id = 0,
+		Id = 2032658411,
 		Name = "Long Lock",
 		Description = "Your base lock lasts twice as long.",
 		SuggestedPrice = 99,
@@ -75,7 +80,7 @@ local Passes: { Pass } = {
 	},
 	{
 		Key = "SpeedBoots",
-		Id = 0,
+		Id = 2034050433,
 		Name = "Speed Boots",
 		Description = "Run faster and carry slimes faster.",
 		SuggestedPrice = 99,
@@ -83,7 +88,7 @@ local Passes: { Pass } = {
 	},
 	{
 		Key = "GoldenBat",
-		Id = 0,
+		Id = 2033714426,
 		Name = "Golden Bat",
 		Description = "Bonk harder and from further away.",
 		SuggestedPrice = 79,
@@ -93,8 +98,36 @@ local Passes: { Pass } = {
 
 local Products: { Product } = {
 	{
+		Key = "StarterPack",
+		Id = 3718401332,
+		Name = "Starter Pack",
+		Description = "One time only: 25K cash, an Epic Crystal slime and 30 min of 2x cash.",
+		SuggestedPrice = 49,
+		Icon = "🎁",
+		Kind = "Bundle",
+		CashMinutes = 0,
+		CashMinimum = 25000,
+		SlimeId = "crystal",
+		DoubleMinutes = 30,
+		OneTime = true,
+		Shop = true,
+	},
+	{
+		Key = "HalloweenBundle",
+		Id = 3718401335,
+		Name = "Halloween Bundle",
+		Description = "Until Nov 4: a Legendary Witch slime and 1 hour of 2x cash.",
+		SuggestedPrice = 199,
+		Icon = "🎃",
+		Kind = "Bundle",
+		SlimeId = "witch",
+		DoubleMinutes = 60,
+		Event = "Halloween",
+		Shop = true,
+	},
+	{
 		Key = "CashSmall",
-		Id = 0,
+		Id = 3718399797,
 		Name = "Cash Bag",
 		Description = "10 minutes of your income.",
 		SuggestedPrice = 29,
@@ -106,7 +139,7 @@ local Products: { Product } = {
 	},
 	{
 		Key = "CashMedium",
-		Id = 0,
+		Id = 3718399810,
 		Name = "Cash Crate",
 		Description = "1 hour of your income.",
 		SuggestedPrice = 99,
@@ -118,7 +151,7 @@ local Products: { Product } = {
 	},
 	{
 		Key = "CashLarge",
-		Id = 0,
+		Id = 3718399820,
 		Name = "Cash Vault",
 		Description = "8 hours of your income.",
 		SuggestedPrice = 399,
@@ -130,7 +163,7 @@ local Products: { Product } = {
 	},
 	{
 		Key = "ServerLuck",
-		Id = 0,
+		Id = 3718399834,
 		Name = "Server Luck x2",
 		Description = "2x rare spawns for EVERYONE for 15 min.",
 		SuggestedPrice = 99,
@@ -140,7 +173,7 @@ local Products: { Product } = {
 	},
 	{
 		Key = "InstantLock",
-		Id = 0,
+		Id = 3718399745,
 		Name = "Instant Lock",
 		Description = "Lock your base now, skipping cooldown.",
 		SuggestedPrice = 19,
@@ -150,7 +183,7 @@ local Products: { Product } = {
 	},
 	{
 		Key = "BeltEpic",
-		Id = 0,
+		Id = 3718399842,
 		Name = "Buy Epic Slime",
 		Description = "Buy this Epic slime from the belt.",
 		SuggestedPrice = 49,
@@ -161,7 +194,7 @@ local Products: { Product } = {
 	},
 	{
 		Key = "BeltLegendary",
-		Id = 0,
+		Id = 3718399852,
 		Name = "Buy Legendary Slime",
 		Description = "Buy this Legendary slime from the belt.",
 		SuggestedPrice = 99,
@@ -172,7 +205,7 @@ local Products: { Product } = {
 	},
 	{
 		Key = "BeltMythic",
-		Id = 0,
+		Id = 3718399861,
 		Name = "Buy Mythic Slime",
 		Description = "Buy this Mythic slime from the belt.",
 		SuggestedPrice = 199,
@@ -183,7 +216,7 @@ local Products: { Product } = {
 	},
 	{
 		Key = "BeltSecret",
-		Id = 0,
+		Id = 3718399868,
 		Name = "Buy Secret Slime",
 		Description = "Buy this Secret slime from the belt.",
 		SuggestedPrice = 399,

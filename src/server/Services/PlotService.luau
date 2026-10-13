@@ -1,12 +1,15 @@
 --!strict
 -- Base ownership: assigns each player a plot, shows their slimes on the
--- pedestals, handles collect pads, selling and the base lock.
+-- pedestals (sized by merge tier and growth), handles collect pads, selling,
+-- merging (three of a kind -> Giant -> Colossal) and the base lock.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 
 local Shared = game:GetService("ReplicatedStorage").Shared
 local Economy = require(Shared.Config.Economy)
+local Rarities = require(Shared.Config.Rarities)
+local Slimes = require(Shared.Config.Slimes)
 local Format = require(Shared.Util.Format)
 local Signal = require(Shared.Util.Signal)
 local SlimeBuilder = require(Shared.SlimeBuilder)
@@ -19,6 +22,7 @@ local NetService = require(script.Parent.NetService)
 local PassService = require(script.Parent.PassService)
 local TelemetryService = require(script.Parent.TelemetryService)
 local WorldService = require(script.Parent.WorldService)
+local EventService = require(script.Parent.EventService)
 
 type Plot = WorldService.Plot
 type PlayerData = DataTemplate.PlayerData
@@ -53,12 +57,12 @@ function PlotService.IsLocked(player: Player): boolean
 	return lock ~= nil and now() < lock.EndsAt
 end
 
-function PlotService.SlotCFrame(player: Player, slot: number, slimeId: string): CFrame?
+function PlotService.SlotCFrame(player: Player, slot: number, slimeId: string, scale: number?): CFrame?
 	local plot = plotOf[player]
 	if not plot or not plot.Pedestals[slot] then
 		return nil
 	end
-	return WorldService.PedestalTop(plot, slot) + Vector3.new(0, SlimeBuilder.HalfHeight(slimeId), 0)
+	return WorldService.PedestalTop(plot, slot) + Vector3.new(0, SlimeBuilder.HalfHeight(slimeId, scale), 0)
 end
 
 local function pushLockState(player: Player)
@@ -69,9 +73,39 @@ local function pushLockState(player: Player)
 	})
 end
 
-local function addPrompts(model: Model, owner: Player, plot: Plot, slot: number, slimeId: string, mutation: string)
+local doMerge: (Player, number) -> ()
+
+local function addPrompts(
+	model: Model,
+	owner: Player,
+	plot: Plot,
+	slot: number,
+	slimeId: string,
+	mutation: string,
+	tier: number?
+)
 	local root = model.PrimaryPart :: BasePart
-	local name = SlimeInfo.DisplayName(slimeId, mutation)
+	local name = SlimeInfo.DisplayName(slimeId, mutation, tier)
+
+	-- Merge: only shown to the owner, and only when they have three alike.
+	local merge = Instance.new("ProximityPrompt")
+	merge.Name = "MergePrompt"
+	merge.ActionText = "MERGE x3"
+	merge.ObjectText = name
+	merge.HoldDuration = 0.4
+	merge.MaxActivationDistance = 9
+	merge.RequiresLineOfSight = false
+	merge.KeyboardKeyCode = Enum.KeyCode.R
+	merge.UIOffset = Vector2.new(0, 90)
+	merge:SetAttribute("OwnerUserId", owner.UserId)
+	merge:SetAttribute("CanMerge", false)
+	CollectionService:AddTag(merge, "MergePrompt")
+	merge.Parent = root
+	merge.Triggered:Connect(function(who: Player)
+		if who == owner then
+			doMerge(owner, slot)
+		end
+	end)
 
 	local steal = Instance.new("ProximityPrompt")
 	steal.Name = "StealPrompt"
@@ -91,7 +125,7 @@ local function addPrompts(model: Model, owner: Player, plot: Plot, slot: number,
 
 	local sell = Instance.new("ProximityPrompt")
 	sell.Name = "SellPrompt"
-	sell.ActionText = "Sell " .. Format.Cash(SlimeInfo.Price(slimeId, mutation) * Economy.SellRefund)
+	sell.ActionText = "Sell " .. Format.Cash(SlimeInfo.Price(slimeId, mutation, tier) * Economy.SellRefund)
 	sell.ObjectText = name
 	sell.HoldDuration = 1.5
 	sell.MaxActivationDistance = 9
@@ -138,24 +172,106 @@ function PlotService.Render(player: Player)
 			and want ~= nil
 			and model:GetAttribute("SlimeId") == want.Id
 			and model:GetAttribute("Mutation") == want.Mutation
+			and model:GetAttribute("Tier") == (want.Tier or 1)
+			and math.abs((model:GetAttribute("Scale") :: number? or 1) - SlimeInfo.Scale(want.Tier, want.Age))
+				< 0.06
 		if wantVisible and matches then
 			continue
 		end
+		-- Same slime and tier, just bigger: it grew (not a merge or a swap).
+		local grew = model ~= nil
+			and want ~= nil
+			and model:GetAttribute("SlimeId") == want.Id
+			and model:GetAttribute("Tier") == (want.Tier or 1)
 		if model then
 			model:Destroy()
 			models[slot] = nil
 		end
 		if wantVisible and want then
-			local newModel = SlimeBuilder.Build(want.Id, want.Mutation)
-			local target = PlotService.SlotCFrame(player, slot, want.Id)
+			local newModel = SlimeBuilder.Build(want.Id, want.Mutation, { Tier = want.Tier, Age = want.Age })
+			local target = PlotService.SlotCFrame(player, slot, want.Id, newModel:GetAttribute("Scale") :: number? or 1)
 			if target then
 				newModel:PivotTo(target)
 			end
-			addPrompts(newModel, player, plot, slot, want.Id, want.Mutation)
+			addPrompts(newModel, player, plot, slot, want.Id, want.Mutation, want.Tier)
 			newModel.Parent = plot.Model
+			if grew and target then
+				-- Same slime, bigger: it grew a size.
+				NetService.Fx("Grow", { Position = target.Position, Scale = newModel:GetAttribute("Scale") })
+			end
 			models[slot] = newModel
 		end
 	end
+	-- Which slimes can merge right now (the owner sees a MERGE prompt).
+	for slot, model in models do
+		local prompt = model.PrimaryPart and model.PrimaryPart:FindFirstChild("MergePrompt")
+		if prompt then
+			prompt:SetAttribute("CanMerge", EconomyService.MergePartners(player, slot, carriedSlots) ~= nil)
+		end
+	end
+end
+
+doMerge = function(player: Player, slot: number)
+	local plot = plotOf[player]
+	local target = EconomyService.GetSlot(player, slot)
+	if not plot or not target or (carried[player] and carried[player][slot]) then
+		return
+	end
+	local fromIds = target.Id
+	local from = {}
+	local partners = EconomyService.MergePartners(player, slot, carried[player])
+	if not partners then
+		NetService.Notify(player, "You need 3 of the same slime to merge!", "Bad")
+		return
+	end
+	for _, other in partners do
+		local cf = PlotService.SlotCFrame(player, other.Slot, other.Id, SlimeInfo.Scale(other.Tier, other.Age))
+		if cf then
+			table.insert(from, cf.Position)
+		end
+	end
+	local consumed, special = EconomyService.Merge(player, slot, carried[player])
+	if not consumed then
+		return
+	end
+	PlotService.Render(player)
+	local merged = EconomyService.GetSlot(player, slot)
+	if not merged then
+		return
+	end
+	local scale = SlimeInfo.Scale(merged.Tier, merged.Age)
+	local to = PlotService.SlotCFrame(player, slot, merged.Id, scale)
+	local name = SlimeInfo.DisplayName(merged.Id, merged.Mutation, merged.Tier)
+	local def = Slimes.ById[merged.Id]
+	local rarity = def and Rarities.ByName[def.Rarity]
+	NetService.Fx("Merge", {
+		From = from,
+		To = if to then to.Position else nil,
+		Name = name,
+		Color = if rarity then rarity.Color else Color3.new(1, 1, 1),
+		Special = special,
+		Halloween = EventService.SeasonalActive("Halloween"),
+		Owner = player.UserId,
+	})
+	if special or (merged.Tier or 1) >= 3 then
+		NetService.Announce(
+			"🧪 " .. player.DisplayName .. " brewed a " .. name .. "!",
+			if rarity then rarity.Color else Color3.new(1, 1, 1)
+		)
+	else
+		NetService.Notify(player, "🧪 Merged into " .. name .. "!", "Good")
+	end
+	if not PassService.Has(player, "AutoCollect") then
+		task.delay(2.5, function()
+			if player.Parent then
+				NetService.FxTo(player, "Offer", {
+					Pass = "AutoCollect",
+					Text = "Your " .. name .. " makes a lot! Auto Collect sends it straight to your wallet.",
+				})
+			end
+		end)
+	end
+	local _ = fromIds
 end
 
 -- Hides a slot's slime while a thief carries it (true) or shows it again.
@@ -281,6 +397,7 @@ local function connectPads(plot: Plot)
 				local amount = EconomyService.Collect(player, slot)
 				if amount > 0 then
 					plot.PadLabels[slot].Text = ""
+					NetService.FxTo(player, "Cash", { Position = pad.Position, Amount = amount })
 				end
 			end
 		end)
@@ -337,6 +454,21 @@ function PlotService.Init()
 	EconomyService.Collected:Connect(function(player: Player)
 		TelemetryService.Onboard(player, TelemetryService.Onboarding.CollectedCash)
 	end)
+	-- A rare slime landing in a base gets a celebration everyone sees.
+	EconomyService.SlimeAdded:Connect(function(player: Player, slotData, source: string)
+		local def = Slimes.ById[slotData.Id]
+		local rarity = def and Rarities.ByName[def.Rarity]
+		if rarity and rarity.Order >= 4 and source ~= "Returned" then
+			local cf = PlotService.SlotCFrame(player, slotData.Slot, slotData.Id)
+			NetService.Fx("Rare", {
+				Position = if cf then cf.Position else nil,
+				Name = SlimeInfo.DisplayName(slotData.Id, slotData.Mutation, slotData.Tier),
+				Rarity = rarity.Name,
+				Color = rarity.Color,
+				Owner = player.UserId,
+			})
+		end
+	end)
 	NetService.OnAction("Lock", function(player: Player)
 		PlotService.Lock(player)
 	end)
@@ -347,6 +479,31 @@ function PlotService.Start()
 		while true do
 			updateLabels()
 			task.wait(0.5)
+		end
+	end)
+	-- Slimes grow: resize the ones that have grown a step, and keep their
+	-- income tags current.
+	task.spawn(function()
+		while true do
+			task.wait(5)
+			for player in plotOf do
+				PlotService.Render(player)
+				local models = rendered[player]
+				if models then
+					for slot, model in models do
+						local slotData = EconomyService.GetSlot(player, slot)
+						local info = model.PrimaryPart and model.PrimaryPart:FindFirstChild("Info")
+						local income = info and info:FindFirstChild("Income")
+						if slotData and income and income:IsA("TextLabel") then
+							local value = SlimeInfo.Income(slotData.Id, slotData.Mutation, slotData.Tier, slotData.Age)
+							local grown = math.floor(SlimeInfo.Growth(slotData.Age) * 100)
+							income.Text = Format.Cash(value)
+								.. "/s"
+								.. (if grown > 0 then "  🌱" .. grown .. "%" else "")
+						end
+					end
+				end
+			end
 		end
 	end)
 end

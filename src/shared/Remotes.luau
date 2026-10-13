@@ -9,11 +9,12 @@
 --   Tutorial  server -> client  current onboarding step + target
 --   Action    client -> server  button presses (lock, rebirth, claim...)
 --   Knockback server -> client  push your own character after a bonk
+--   Fx        server -> clients effects: merge, grow, cash pop, rare slime
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local NAMES = { "State", "Index", "Notify", "Announce", "Events", "Tutorial", "Action", "Knockback" }
+local NAMES = { "State", "Index", "Notify", "Announce", "Events", "Tutorial", "Action", "Knockback", "Fx" }
 
 local folder: Instance
 if RunService:IsServer() then

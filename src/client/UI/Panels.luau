@@ -105,10 +105,37 @@ function Panels.Shop(screen: ScreenGui): Kit.Panel
 			end)
 		end
 	end
+	-- Bundles go first; the Starter Pack hides once bought, the Halloween
+	-- Bundle once the event is over.
+	local bundles: { { Frame: Frame, Product: Monetization.Product } } = {}
+	local function refreshBundles()
+		local seasonal = Store.Events.Seasonal
+		for _, entry in bundles do
+			local p = entry.Product
+			local visible = true
+			if p.OneTime and Store.Get("StarterBought", false) then
+				visible = false
+			end
+			if p.Event and not (type(seasonal) == "table" and seasonal.Id == p.Event) then
+				visible = false
+			end
+			entry.Frame.Visible = visible
+		end
+	end
 	for _, product in Monetization.Products do
 		if product.Shop then
 			order += 1
-			local frame = card(order, product.Icon, product.Name, product.Description, Kit.Colors.Blue)
+			local bundle = product.Kind == "Bundle"
+			local frame = card(
+				if bundle then order - 1000 else order,
+				product.Icon,
+				product.Name,
+				product.Description,
+				if bundle then Kit.Colors.Gold else Kit.Colors.Blue
+			)
+			if bundle then
+				table.insert(bundles, { Frame = frame, Product = product })
+			end
 			local button = Kit.Button(
 				frame,
 				if product.Id == 0 then "Coming soon" else "R$ " .. product.SuggestedPrice,
@@ -129,7 +156,11 @@ function Panels.Shop(screen: ScreenGui): Kit.Panel
 		end
 	end
 
+	refreshBundles()
 	Store.Changed:Connect(function(section: string)
+		if section == "Events" or section == "State" then
+			refreshBundles()
+		end
 		if section ~= "State" then
 			return
 		end

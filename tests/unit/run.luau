@@ -248,6 +248,31 @@ local function seededRandom(seed: number)
 	return rng
 end
 
+test("merging and growth", function()
+	-- Merge tiers pay more than the slimes that went in (three of a kind).
+	for i = 2, #Economy.MergeTiers do
+		local tier = Economy.MergeTiers[i]
+		local prev = Economy.MergeTiers[i - 1]
+		assert(tier.Income > prev.Income * Economy.MergeCount, "tier " .. i .. " pays less than its inputs")
+		assert(tier.Size > prev.Size, "tier " .. i .. " is not bigger")
+	end
+	-- Growth: nothing at first, full bonus at GrowSeconds, capped after.
+	assert(SlimeInfo.Growth(0) == 0 and SlimeInfo.Growth(Economy.GrowSeconds) == 1, "growth range")
+	assert(SlimeInfo.Growth(Economy.GrowSeconds * 5) == 1, "growth caps")
+	local base = SlimeInfo.Income("goo", "")
+	assert(SlimeInfo.Income("goo", "", 1, Economy.GrowSeconds) == base * (1 + Economy.GrowIncomeBonus), "grown income")
+	assert(SlimeInfo.Income("goo", "", 2) == base * Economy.MergeTiers[2].Income, "giant income")
+	assert(SlimeInfo.DisplayName("goo", "", 2) == "Giant Goo", "giant name")
+	-- Merge recipes point at merge-only slimes, which never spawn on the belt.
+	for _, def in Slimes.List do
+		if def.MergeInto then
+			local target = Slimes.ById[def.MergeInto]
+			assert(target and target.MergeOnly, def.Id .. " merges into a missing or belt slime")
+			assert(target.Income > def.Income * Economy.MergeCount, def.Id .. " recipe pays less than its inputs")
+		end
+	end
+end)
+
 test("balance: time to first rebirth is reasonable", function()
 	local rng = seededRandom(7)
 	local cash = Economy.StartingCash

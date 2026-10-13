@@ -9,6 +9,7 @@ local Hud = require(script.UI.Hud)
 local Panels = require(script.UI.Panels)
 local Controllers = require(script.Controllers)
 local ChatTags = require(script.ChatTags)
+local Effects = require(script.Effects)
 
 local player = Players.LocalPlayer
 
@@ -48,6 +49,7 @@ tutorialLabel.Visible = false
 
 Controllers.Start(tutorialLabel)
 ChatTags.Start()
+Effects.Start(screen)
 
 -- Open the daily reward panel on join if there's something to claim.
 task.delay(4, function()

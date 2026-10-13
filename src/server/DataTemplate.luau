@@ -9,6 +9,8 @@ export type SlotData = {
 	Id: string, -- slime id
 	Mutation: string, -- "" for none
 	Stored: number, -- uncollected cash on this pedestal
+	Tier: number?, -- merge tier: nil/1 normal, 2 Giant, 3 Colossal
+	Age: number?, -- seconds it has grown in a base
 }
 
 export type PlayerData = {
@@ -31,6 +33,7 @@ export type PlayerData = {
 	Receipts: { string },
 	Funnel: { [string]: boolean }, -- onboarding analytics steps already logged
 	Codes: { [string]: boolean }, -- redeemed codes
+	StarterBought: boolean, -- bought the one-time Starter Pack
 }
 
 local DataTemplate = {}
@@ -50,6 +53,7 @@ function DataTemplate.New(): PlayerData
 		Receipts = {},
 		Funnel = {},
 		Codes = {},
+		StarterBought = false,
 	}
 end
 

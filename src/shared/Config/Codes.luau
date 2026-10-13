@@ -24,6 +24,11 @@ local Codes: { Code } = {
 	{ Code = "SLIME", Kind = "Cash", Minutes = 10, Minimum = 500 },
 	{ Code = "LUCKY", Kind = "Double", Minutes = 10 },
 	{ Code = "SPOOKY", Kind = "Cash", Minutes = 20, Minimum = 2000, Expires = utc(2026, 11, 4) },
+	-- Stream / launch codes. For a streamer's own code, copy a line and put
+	-- their name in Code (e.g. "ERIK500"): their viewers redeem it on stream.
+	{ Code = "CAULDRON", Kind = "Slime", SlimeId = "pumpkin", Expires = utc(2026, 11, 4) },
+	{ Code = "STREAM", Kind = "Double", Minutes = 15 },
+	{ Code = "MERGE", Kind = "Cash", Minutes = 15, Minimum = 1500 },
 }
 
 local byCode: { [string]: Code } = {}

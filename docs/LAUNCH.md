@@ -49,7 +49,7 @@ Moderation takes a few minutes per image. Upload before going public.
 Title:
 
 ```
-Steal a Slime 🟢 [HALLOWEEN]
+Steal a Slime 🟢 Merge & Grow [HALLOWEEN]
 ```
 
 Description, ready to paste:
@@ -66,8 +66,12 @@ Then steal everyone else's.
 👻 HALLOWEEN: Pumpkin, Ghost, Witch and Phantom slimes, plus the Haunted
    mutation — gone after November 4
 
+🧪 MERGE 3 of the same slime into a GIANT, then a COLOSSAL
+🌱 Slimes GROW the longer you keep them: bigger, richer, juicier to steal
+🎃 Brew a Jack-o'-Slime or a Poltergeist in the Halloween cauldron
+
 CODES (use the Codes button):
-RELEASE · SLIME · LUCKY · SPOOKY
+RELEASE · SLIME · LUCKY · SPOOKY · CAULDRON · STREAM · MERGE
 
 Join the group for +10% cash and new codes every update.
 ```
@@ -76,44 +80,16 @@ Keywords go first in the title because that is what search matches on.
 
 ## 4. Passes and products
 
-Creator Hub -> **Monetization**. Create each one, upload its icon from
-`assets/monetization/`, then paste the ID over the `0` on the listed line of
-`src/shared/Config/Monetization.luau`.
+**Done.** All 7 passes and 11 developer products exist on Roblox, with their
+icons, at the prices in `src/shared/Config/Monetization.luau` (created by
+`python scripts/create_products.py`, which wrote the IDs into that file). The
+Starter Pack (R$49) and Halloween Bundle (R$199) have no icon yet: upload one
+in Creator Hub -> Monetization -> Developer Products.
 
-Anything left at `0` shows as "Coming soon" and is never offered for purchase,
-so the game runs fine while this is half done.
+To add another item later: add it to `Monetization.luau` with `Id = 0` and
+run `python scripts/create_products.py --only <Key>`.
 
-**Passes** (Monetization -> Passes):
-
-| Line | Name | R$ | Icon |
-|---|---|---|---|
-| 36 | 2x Cash | 399 | `DoubleCash.png` |
-| 37 | VIP | 249 | `VIP.png` |
-| 38 | Auto Collect | 149 | `AutoCollect.png` |
-| 39 | +6 Slots | 199 | `ExtraSlots.png` |
-| 40 | Long Lock | 99 | `LongLock.png` |
-| 41 | Speed Boots | 99 | `SpeedBoots.png` |
-| 42 | Golden Bat | 79 | `GoldenBat.png` |
-
-**Developer Products** (Monetization -> Developer Products):
-
-| Line | Name | R$ | Icon |
-|---|---|---|---|
-| 46 | Cash Bag | 29 | `CashSmall.png` |
-| 47 | Cash Crate | 99 | `CashMedium.png` |
-| 48 | Cash Vault | 399 | `CashLarge.png` |
-| 49 | Server Luck x2 | 99 | `ServerLuck.png` |
-| 50 | Instant Lock | 19 | `InstantLock.png` |
-| 51 | Buy Epic Slime | 49 | `BeltEpic.png` |
-| 52 | Buy Legendary Slime | 99 | `BeltLegendary.png` |
-| 53 | Buy Mythic Slime | 199 | `BeltMythic.png` |
-| 54 | Buy Secret Slime | 399 | `BeltSecret.png` |
-
-Do the four `Belt*` products first. They are the F prompt on the belt and the
-single biggest earner in this genre; until their IDs are set, no Robux prompt
-appears on belt slimes at all.
-
-Then make a Roblox group and put its ID in `GroupId` (line 81) for the +10%
+Make a Roblox group and put its ID in `GroupId` in `Monetization.luau` for the +10%
 bonus and a channel to announce codes through.
 
 ## 5. Test with real players

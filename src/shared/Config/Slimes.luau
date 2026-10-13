@@ -18,6 +18,8 @@ export type SlimeDef = {
 	Hat: string?,
 	Glow: boolean?,
 	Event: string?, -- only spawns while this event is active
+	MergeOnly: boolean?, -- never on the belt: only made by merging
+	MergeInto: string?, -- merging three of these makes this slime instead of a Giant
 }
 
 local K, M, B = 1e3, 1e6, 1e9
@@ -330,6 +332,7 @@ local Slimes: { SlimeDef } = {
 		Size = 1.2,
 		Hat = "Pumpkin",
 		Event = "Halloween",
+		MergeInto = "jackoslime",
 	},
 	{
 		Id = "ghost",
@@ -341,6 +344,7 @@ local Slimes: { SlimeDef } = {
 		Size = 1.3,
 		Transparency = 0.45,
 		Event = "Halloween",
+		MergeInto = "poltergeist",
 	},
 	{
 		Id = "witch",
@@ -365,6 +369,34 @@ local Slimes: { SlimeDef } = {
 		Glow = true,
 		Hat = "WitchHat",
 		Event = "Halloween",
+	},
+	-- Merge-only Halloween slimes (three Pumpkins / three Ghosts in the cauldron).
+	{
+		Id = "jackoslime",
+		Name = "Jack-o'-Slime",
+		Rarity = "Legendary",
+		Price = 120 * K,
+		Income = 1500,
+		Color = Color3.fromRGB(255, 120, 10),
+		Size = 1.7,
+		Material = Enum.Material.Neon,
+		Glow = true,
+		Hat = "Pumpkin",
+		Event = "Halloween",
+		MergeOnly = true,
+	},
+	{
+		Id = "poltergeist",
+		Name = "Poltergeist",
+		Rarity = "Mythic",
+		Price = 1.5 * M,
+		Income = 15 * K,
+		Color = Color3.fromRGB(170, 255, 230),
+		Size = 1.9,
+		Transparency = 0.35,
+		Glow = true,
+		Event = "Halloween",
+		MergeOnly = true,
 	},
 }
 

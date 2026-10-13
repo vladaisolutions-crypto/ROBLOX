@@ -17,6 +17,7 @@ local DataService = require(script.Parent.DataService)
 local NetService = require(script.Parent.NetService)
 local PassService = require(script.Parent.PassService)
 local TelemetryService = require(script.Parent.TelemetryService)
+local EventService = require(script.Parent.EventService)
 
 type PlayerData = DataTemplate.PlayerData
 type SlotData = DataTemplate.SlotData
@@ -81,7 +82,7 @@ function EconomyService.BaseIncome(player: Player): number
 	end
 	local total = 0
 	for _, slot in data.Slots do
-		total += SlimeInfo.Income(slot.Id, slot.Mutation)
+		total += SlimeInfo.Income(slot.Id, slot.Mutation, slot.Tier, slot.Age)
 	end
 	return total
 end
@@ -147,6 +148,7 @@ function EconomyService.PushState(player: Player)
 		FriendsInServer = state.FriendsInServer,
 		InGroup = state.InGroup,
 		DoubleUntil = state.DoubleUntil,
+		StarterBought = data.StarterBought,
 	})
 	local leaderstats = state.Leaderstats
 	if leaderstats then
@@ -218,7 +220,9 @@ function EconomyService.AddSlime(
 	slimeId: string,
 	mutation: string,
 	source: string,
-	preferredSlot: number?
+	preferredSlot: number?,
+	tier: number?,
+	age: number?
 ): SlotData?
 	local data = DataService.Get(player)
 	if not data or not Slimes.ById[slimeId] then
@@ -235,7 +239,7 @@ function EconomyService.AddSlime(
 	if not slot then
 		return nil
 	end
-	local slotData: SlotData = { Slot = slot, Id = slimeId, Mutation = mutation, Stored = 0 }
+	local slotData: SlotData = { Slot = slot, Id = slimeId, Mutation = mutation, Stored = 0, Tier = tier, Age = age }
 	table.insert(data.Slots, slotData)
 	discover(player, data, slimeId, mutation)
 	EconomyService.SlotsChanged:Fire(player)
@@ -280,11 +284,14 @@ function EconomyService.Sell(player: Player, slot: number): boolean
 	end
 	EconomyService.Collect(player, slot)
 	EconomyService.RemoveSlime(player, slot)
-	local refund = SlimeInfo.Price(slotData.Id, slotData.Mutation) * Economy.SellRefund
+	local refund = SlimeInfo.Price(slotData.Id, slotData.Mutation, slotData.Tier) * Economy.SellRefund
 	EconomyService.AddCash(player, refund, "Sell", slotData.Id)
 	NetService.Notify(
 		player,
-		"Sold " .. SlimeInfo.DisplayName(slotData.Id, slotData.Mutation) .. " for " .. Format.Cash(refund),
+		"Sold "
+			.. SlimeInfo.DisplayName(slotData.Id, slotData.Mutation, slotData.Tier)
+			.. " for "
+			.. Format.Cash(refund),
 		"Money"
 	)
 	EconomyService.PushState(player)
@@ -315,6 +322,80 @@ function EconomyService.Rebirth(player: Player): boolean
 	EconomyService.Rebirthed:Fire(player, data.Rebirths)
 	EconomyService.PushState(player)
 	return true
+end
+
+-- The other slots that would merge with `slot` (same slime, mutation and
+-- tier), skipping `skip` (e.g. slimes being carried off). nil if there
+-- aren't enough or the slime can't go any higher.
+function EconomyService.MergePartners(player: Player, slot: number, skip: { [number]: boolean }?): { SlotData }?
+	local target = EconomyService.GetSlot(player, slot)
+	local data = DataService.Get(player)
+	if not target or not data then
+		return nil
+	end
+	local def = Slimes.ById[target.Id]
+	local tier = target.Tier or 1
+	local recipe = def and def.MergeInto and tier == 1 and EventService.SeasonalActive(def.Event or "")
+	if not recipe and tier >= #Economy.MergeTiers then
+		return nil
+	end
+	local partners = {}
+	for _, other in data.Slots do
+		if
+			other ~= target
+			and other.Id == target.Id
+			and other.Mutation == target.Mutation
+			and (other.Tier or 1) == tier
+			and not (skip and skip[other.Slot])
+		then
+			table.insert(partners, other)
+			if #partners == Economy.MergeCount - 1 then
+				return partners
+			end
+		end
+	end
+	return nil
+end
+
+-- Merges `slot` with two matching slimes: they're consumed and `slot`
+-- becomes the next tier (or, for a Halloween recipe, a new slime). Returns
+-- the consumed slots and whether a special slime was made.
+function EconomyService.Merge(player: Player, slot: number, skip: { [number]: boolean }?): ({ number }?, boolean)
+	local partners = EconomyService.MergePartners(player, slot, skip)
+	local target = EconomyService.GetSlot(player, slot)
+	local data = DataService.Get(player)
+	if not partners or not target or not data then
+		return nil, false
+	end
+	local consumed = {}
+	local age = target.Age or 0 -- summed, then averaged
+	EconomyService.Collect(player, slot)
+	for _, other in partners do
+		EconomyService.Collect(player, other.Slot)
+		age += other.Age or 0
+		table.insert(consumed, other.Slot)
+	end
+	for _, other in partners do
+		local index = table.find(data.Slots, other)
+		if index then
+			table.remove(data.Slots, index)
+		end
+	end
+	local def = Slimes.ById[target.Id]
+	local special = false
+	if def and def.MergeInto and (target.Tier or 1) == 1 and EventService.SeasonalActive(def.Event or "") then
+		target.Id = def.MergeInto
+		target.Tier = 1
+		special = true
+	else
+		target.Tier = (target.Tier or 1) + 1
+	end
+	target.Age = age / Economy.MergeCount -- the three slimes' average growth
+	discover(player, data, target.Id, target.Mutation)
+	TelemetryService.Custom(player, "Merge", target.Tier or 1)
+	EconomyService.SlotsChanged:Fire(player)
+	EconomyService.PushState(player)
+	return consumed, special
 end
 
 -- Cash from `minutes` of the player's current income, with a floor.
@@ -379,6 +460,12 @@ local function payOfflineEarnings(player: Player, lastOnline: number, loadedAt: 
 	if amount > 0 then
 		EconomyService.AddCash(player, amount, "Offline")
 		NetService.Notify(player, "💤 Your slimes made " .. Format.Cash(amount) .. " while you were away!", "Money")
+		if not PassService.Has(player, "DoubleCash") then
+			NetService.FxTo(player, "Offer", {
+				Pass = "DoubleCash",
+				Text = "With 2x Cash you'd have got +" .. Format.Cash(amount) .. " more while you were away!",
+			})
+		end
 	end
 end
 
@@ -421,7 +508,8 @@ local function tick()
 			local multiplier = EconomyService.Multiplier(player)
 			local auto = PassService.Has(player, "AutoCollect")
 			for _, slot in data.Slots do
-				local amount = SlimeInfo.Income(slot.Id, slot.Mutation) * multiplier
+				slot.Age = (slot.Age or 0) + 1
+				local amount = SlimeInfo.Income(slot.Id, slot.Mutation, slot.Tier, slot.Age) * multiplier
 				if auto then
 					data.Cash += amount
 					data.TotalEarned += amount

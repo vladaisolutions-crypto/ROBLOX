@@ -6,3 +6,4 @@ sourcemap.json
 
 # Raw image generations (superseded by the processed files above them)
 assets/store/raw/
+__pycache__/
