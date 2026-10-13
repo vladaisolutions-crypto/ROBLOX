@@ -52,9 +52,9 @@ local Economy = {
 	BonkCooldown = 0.9,
 	BonkRange = 9,
 	BonkRangeGolden = 13,
-	BonkForce = 75,
-	BonkForceGolden = 115,
-	BonkLift = 0.6, -- upward launch as a fraction of the force
+	BonkForce = 42,
+	BonkForceGolden = 62,
+	BonkLift = 0.45, -- upward launch as a fraction of the force
 	BonkHitDelay = 0.28, -- seconds from click to contact, matching BatSwing.ContactTime
 	BonkStunSeconds = 2,
 
