@@ -10,6 +10,11 @@ local Uploaded: { [string]: number } = {
 	Rare = 81697270155385,
 	Bonk = 136154988977012,
 	Whoosh = 89877680967761,
+	Reward = 85150479795865,
+	Coins = 119665346551949,
+	Fanfare = 110662878792964,
+	Alarm = 100786123828377,
+	Pop = 123444471737331,
 }
 
 -- Source file in assets/sfx for each key (used by the upload script).
@@ -20,6 +25,11 @@ local Files: { [string]: string } = {
 	Rare = "rare",
 	Bonk = "bonk",
 	Whoosh = "whoosh",
+	Reward = "reward",
+	Coins = "coins",
+	Fanfare = "fanfare",
+	Alarm = "alarm",
+	Pop = "pop",
 }
 
 local Fallback: { [string]: string } = {
@@ -29,6 +39,11 @@ local Fallback: { [string]: string } = {
 	Rare = "rbxasset://sounds/electronicpingshort.wav",
 	Bonk = "rbxasset://sounds/collide.wav",
 	Whoosh = "rbxasset://sounds/swordlunge.wav",
+	Reward = "rbxasset://sounds/electronicpingshort.wav",
+	Coins = "rbxasset://sounds/electronicpingshort.wav",
+	Fanfare = "rbxasset://sounds/electronicpingshort.wav",
+	Alarm = "rbxasset://sounds/button.wav",
+	Pop = "rbxasset://sounds/button.wav",
 }
 
 local Ids: { [string]: string } = {}

@@ -9,6 +9,7 @@ local RunService = game:GetService("RunService")
 local Shared = game:GetService("ReplicatedStorage").Shared
 local Economy = require(Shared.Config.Economy)
 local Remotes = require(Shared.Remotes)
+local Signal = require(Shared.Util.Signal)
 local SlimeBuilder = require(Shared.SlimeBuilder)
 local SlimeInfo = require(Shared.SlimeInfo)
 
@@ -33,6 +34,10 @@ type Carry = {
 }
 
 local StealService = {}
+
+-- (attacker, attackerRoot, range, force) at the moment a bat swing connects,
+-- so other things (NPC thieves) can be hit too.
+StealService.Swung = Signal.new()
 
 local carries: { [Player]: Carry } = {}
 local lastBonk: { [Player]: number } = {}
@@ -187,6 +192,16 @@ end
 
 function StealService.IsCarrying(player: Player): boolean
 	return carries[player] ~= nil
+end
+
+-- True if a player thief is carrying this slot's slime right now.
+function StealService.IsSlotCarried(owner: Player, slot: number): boolean
+	for _, carry in carries do
+		if carry.Owner == owner and carry.Slot == slot then
+			return true
+		end
+	end
+	return false
 end
 
 -- Ends a carry. If `delivered` is false the slime goes back to its owner.
@@ -459,6 +474,7 @@ function StealService.Bonk(attacker: Player, golden: boolean)
 
 	local range = if golden then Economy.BonkRangeGolden else Economy.BonkRange
 	local force = if golden then Economy.BonkForceGolden else Economy.BonkForce
+	StealService.Swung:Fire(attacker, attackerRoot, range, force)
 	for _, target in Players:GetPlayers() do
 		local targetRoot = rootOf(target)
 		if target ~= attacker and targetRoot then

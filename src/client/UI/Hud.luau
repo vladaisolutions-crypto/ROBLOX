@@ -242,7 +242,30 @@ function Hud.Create(screen: ScreenGui, menus: Menus)
 		Bad = Color3.fromRGB(160, 40, 55),
 		Money = Color3.fromRGB(150, 115, 20),
 	}
+	local Sounds = require(game:GetService("ReplicatedStorage").Shared.Config.Sounds).Ids
+	local function uiSound(id: string, volume: number)
+		local sound = Instance.new("Sound")
+		sound.SoundId = id
+		sound.Volume = volume
+		sound.Parent = game:GetService("SoundService")
+		sound.Ended:Connect(function()
+			sound:Destroy()
+		end)
+		sound:Play()
+		task.delay(6, function()
+			sound:Destroy()
+		end)
+	end
+	local NOTIFY_SOUNDS: { [string]: string } = {
+		Money = Sounds.Coins,
+		Good = Sounds.Reward,
+		Info = Sounds.Pop,
+	}
 	Remotes.Get("Notify").OnClientEvent:Connect(function(text: string, kind: string)
+		local sound = NOTIFY_SOUNDS[kind]
+		if sound then
+			uiSound(sound, if kind == "Info" then 0.4 else 0.6)
+		end
 		toastCount += 1
 		local toast = Kit.Frame(toasts, UDim2.new(1, 0, 0, 40), nil, KIND_COLORS[kind] or KIND_COLORS.Info)
 		toast.LayoutOrder = -toastCount
@@ -264,6 +287,7 @@ function Hud.Create(screen: ScreenGui, menus: Menus)
 			table.remove(announceQueue, 1)
 		end
 		table.insert(announceQueue, { Text = text, Color = color })
+		uiSound(Sounds.Fanfare, 0.5)
 		pumpAnnouncements()
 	end)
 

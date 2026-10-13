@@ -58,6 +58,17 @@ local Economy = {
 	BonkHitDelay = 0.14, -- seconds from click to contact, matching the swing
 	BonkStunSeconds = 2,
 
+	-- NPC thief (ThiefService): visits each player every few minutes.
+	ThiefFirstDelay = 240, -- seconds after joining before the first visit
+	ThiefMinInterval = 240,
+	ThiefMaxInterval = 420,
+	ThiefMinSlimes = 3, -- only bases with at least this many (he skips the best one)
+	ThiefWalkSpeed = 13,
+	ThiefCarrySpeed = 10, -- players walk 16, so you can always catch him
+	ThiefGrabSeconds = 2,
+	ThiefRewardMinutes = 2, -- bonk reward: this many minutes of the owner's income
+	ThiefRewardMinimum = 250,
+
 	-- Growth: slimes grow while they sit in a base, up to double income
 	-- (and a bigger, juicier target) after GrowSeconds. Stolen slimes keep it.
 	GrowSeconds = 30 * 60,

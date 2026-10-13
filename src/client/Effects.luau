@@ -460,7 +460,12 @@ end
 -- button, and goes away on its own. At most one every 90 seconds.
 local function onOffer(data: { [string]: any })
 	local pass = if type(data.Pass) == "string" then Monetization.PassByKey[data.Pass] else nil
-	if not pass or pass.Id == 0 or Store.HasPass(pass.Key) or os.clock() - lastOffer < 90 then
+	local product = if type(data.Product) == "string" then Monetization.ProductByKey[data.Product] else nil
+	local offer = pass or product
+	if not offer or offer.Id == 0 or (pass and Store.HasPass(pass.Key)) then
+		return
+	end
+	if os.clock() - lastOffer < (if data.Urgent == true then 20 else 90) then
 		return
 	end
 	lastOffer = os.clock()
@@ -486,7 +491,7 @@ local function onOffer(data: { [string]: any })
 	text.TextWrapped = true
 	text.TextColor3 = Color3.new(1, 1, 1)
 	text.TextXAlignment = Enum.TextXAlignment.Left
-	text.Text = pass.Icon .. " " .. (if type(data.Text) == "string" then data.Text else pass.Description)
+	text.Text = offer.Icon .. " " .. (if type(data.Text) == "string" then data.Text else offer.Description)
 	text.Parent = card
 	local buy = Instance.new("TextButton")
 	buy.AnchorPoint = Vector2.new(1, 0.5)
@@ -496,13 +501,17 @@ local function onOffer(data: { [string]: any })
 	buy.Font = Enum.Font.FredokaOne
 	buy.TextScaled = true
 	buy.TextColor3 = Color3.new(1, 1, 1)
-	buy.Text = "GET " .. string.upper(pass.Name) .. "\nR$ " .. pass.SuggestedPrice
+	buy.Text = "GET " .. string.upper(offer.Name) .. "\nR$ " .. offer.SuggestedPrice
 	buy.Parent = card
 	local buyCorner = Instance.new("UICorner")
 	buyCorner.CornerRadius = UDim.new(0, 10)
 	buyCorner.Parent = buy
 	buy.Activated:Connect(function()
-		MarketplaceService:PromptGamePassPurchase(player, pass.Id)
+		if pass then
+			MarketplaceService:PromptGamePassPurchase(player, pass.Id)
+		else
+			MarketplaceService:PromptProductPurchase(player, offer.Id)
+		end
 	end)
 	-- Buy button pulses so it catches the eye.
 	TweenService:Create(
@@ -732,6 +741,13 @@ function Effects.Start(screen: ScreenGui)
 			onRare(data)
 		elseif kind == "Offer" then
 			onOffer(data)
+		elseif kind == "Thief" then
+			play(Sounds.Alarm, nil, 0.8)
+		elseif kind == "ThiefCaught" then
+			play(Sounds.Fanfare, nil, 0.8)
+		elseif kind == "ThiefPoof" and typeof(data.Position) == "Vector3" then
+			burst(data.Position, Color3.fromRGB(120, 110, 140), 18, 14, 0.7)
+			play(Sounds.Pop, data.Position, 0.7, 0.8)
 		elseif kind == "Swing" then
 			onSwing(data)
 		elseif kind == "Bonk" then
