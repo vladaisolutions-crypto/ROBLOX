@@ -193,27 +193,93 @@ local function buildPlot(index: number, cframe: CFrame): Plot
 		Name = "Floor",
 		Size = Vector3.new(W, 1, D),
 		CFrame = at(0, floorY - 0.5, 0),
-		Color = color:Lerp(Color3.new(1, 1, 1), 0.55),
+		Color = color:Lerp(Color3.fromRGB(45, 42, 55), 0.7),
+		Material = Enum.Material.Slate,
 		Parent = model,
 	})
-	-- Walls on three sides, entrance faces the belt (+Z local)
-	local wallColor = color:Lerp(Color3.new(0, 0, 0), 0.15)
-	part({
-		Name = "Wall",
-		Size = Vector3.new(W, World.WallHeight, 1),
-		CFrame = at(0, floorY + World.WallHeight / 2, -D / 2),
-		Color = wallColor,
-		Parent = model,
-	})
-	for _, side in { -1, 1 } do
+	-- Glowing trim around the floor so each base reads clearly, day or night.
+	for _, edge in
+		{
+			{ Vector3.new(W, 0.3, 0.6), Vector3.new(0, 0, D / 2 - 0.3) },
+			{ Vector3.new(W, 0.3, 0.6), Vector3.new(0, 0, -D / 2 + 0.3) },
+			{ Vector3.new(0.6, 0.3, D), Vector3.new(W / 2 - 0.3, 0, 0) },
+			{ Vector3.new(0.6, 0.3, D), Vector3.new(-W / 2 + 0.3, 0, 0) },
+		}
+	do
 		part({
-			Name = "Wall",
-			Size = Vector3.new(1, World.WallHeight, D),
-			CFrame = at(side * W / 2, floorY + World.WallHeight / 2, 0),
-			Color = wallColor,
+			Name = "Trim",
+			Size = edge[1],
+			CFrame = at(edge[2].X, floorY + 0.15, edge[2].Z),
+			Color = color,
+			Material = Enum.Material.Neon,
+			CanCollide = false,
 			Parent = model,
 		})
 	end
+	-- Walls on three sides (invisible colliders), dressed as a spiked iron
+	-- fence with a glowing rail. The entrance faces the belt (+Z local).
+	local iron = Color3.fromRGB(30, 28, 36)
+	local function fence(from: Vector3, to: Vector3)
+		local length = (to - from).Magnitude
+		local dir = (to - from).Unit
+		local mid = (from + to) / 2
+		local alongX = math.abs(dir.X) > 0.5
+		part({
+			Name = "Wall",
+			Size = if alongX
+				then Vector3.new(length, World.WallHeight, 1)
+				else Vector3.new(1, World.WallHeight, length),
+			CFrame = at(mid.X, floorY + World.WallHeight / 2, mid.Z),
+			Color = iron,
+			Transparency = 1,
+			Parent = model,
+		})
+		for _, y in { 2.2, 5.6 } do
+			part({
+				Name = "Rail",
+				Size = if alongX then Vector3.new(length, 0.35, 0.35) else Vector3.new(0.35, 0.35, length),
+				CFrame = at(mid.X, floorY + y, mid.Z),
+				Color = iron,
+				Material = Enum.Material.Metal,
+				CanCollide = false,
+				Parent = model,
+			})
+		end
+		part({
+			Name = "Glow",
+			Size = if alongX then Vector3.new(length, 0.2, 0.2) else Vector3.new(0.2, 0.2, length),
+			CFrame = at(mid.X, floorY + 5.95, mid.Z),
+			Color = color,
+			Material = Enum.Material.Neon,
+			CanCollide = false,
+			Parent = model,
+		})
+		local posts = math.max(2, math.floor(length / 3.2))
+		for i = 0, posts do
+			local p = from + (to - from) * (i / posts)
+			part({
+				Name = "Post",
+				Size = Vector3.new(0.4, 7, 0.4),
+				CFrame = at(p.X, floorY + 3.5, p.Z),
+				Color = iron,
+				Material = Enum.Material.Metal,
+				CanCollide = false,
+				Parent = model,
+			})
+			part({
+				Name = "Spike",
+				Size = Vector3.new(0.6, 0.6, 0.6),
+				CFrame = at(p.X, floorY + 7.2, p.Z) * CFrame.Angles(0, math.rad(45), math.rad(45)),
+				Color = iron,
+				Material = Enum.Material.Metal,
+				CanCollide = false,
+				Parent = model,
+			})
+		end
+	end
+	fence(Vector3.new(-W / 2, 0, -D / 2), Vector3.new(W / 2, 0, -D / 2))
+	fence(Vector3.new(-W / 2, 0, -D / 2), Vector3.new(-W / 2, 0, D / 2))
+	fence(Vector3.new(W / 2, 0, -D / 2), Vector3.new(W / 2, 0, D / 2))
 
 	local barrierGroup = "Barrier" .. index
 	local ownerGroup = "Owner" .. index
@@ -233,20 +299,61 @@ local function buildPlot(index: number, cframe: CFrame): Plot
 	})
 	barrier.CollisionGroup = barrierGroup
 
-	-- Owner sign above the entrance
-	local signPost = part({
-		Name = "SignAnchor",
-		Size = Vector3.new(1, 1, 1),
-		CFrame = at(0, floorY + World.WallHeight + 6, D / 2),
-		Color = color,
-		Transparency = 1,
+	-- Entrance gate: two stone pillars (lanterns on top) and an arch carrying
+	-- the owner's sign, facing the belt.
+	local stone = Color3.fromRGB(78, 74, 88)
+	for _, side in { -1, 1 } do
+		part({
+			Name = "GatePillar",
+			Size = Vector3.new(3, 15, 3),
+			CFrame = at(side * (W / 2 - 1.5), floorY + 7.5, D / 2),
+			Color = stone,
+			Material = Enum.Material.Cobblestone,
+			Parent = model,
+		})
+		local lantern = part({
+			Name = "GateLantern",
+			Size = Vector3.one * 2.2,
+			CFrame = at(side * (W / 2 - 1.5), floorY + 16.2, D / 2),
+			Color = color,
+			Material = Enum.Material.Neon,
+			CanCollide = false,
+			Shape = Enum.PartType.Ball,
+			Parent = model,
+		})
+		local light = Instance.new("PointLight")
+		light.Color = color
+		light.Range = 22
+		light.Brightness = 1.4
+		light.Parent = lantern
+	end
+	local arch = part({
+		Name = "GateArch",
+		Size = Vector3.new(W, 2.4, 2.4),
+		CFrame = at(0, floorY + 14, D / 2),
+		Color = stone,
+		Material = Enum.Material.Cobblestone,
 		CanCollide = false,
 		Parent = model,
 	})
-	local signGui = billboard(signPost, Vector3.zero, UDim2.fromOffset(360, 100), 250)
-	local ownerLabel = label(signGui, "Empty Base", color:Lerp(Color3.new(1, 1, 1), 0.3), UDim2.fromScale(1, 0.6))
+	local sign = part({
+		Name = "Sign",
+		Size = Vector3.new(26, 5, 0.6),
+		CFrame = at(0, floorY + 11, D / 2 + 0.9),
+		Color = Color3.fromRGB(28, 24, 36),
+		Material = Enum.Material.Wood,
+		CanCollide = false,
+		Parent = model,
+	})
+	local _ = arch
+	local signGui = Instance.new("SurfaceGui")
+	signGui.Face = Enum.NormalId.Back -- the side facing the belt (+Z local)
+	signGui.LightInfluence = 0
+	signGui.CanvasSize = Vector2.new(520, 100)
+	signGui.Parent = sign
+	local ownerLabel = label(signGui, "Empty Base", color:Lerp(Color3.new(1, 1, 1), 0.3), UDim2.fromScale(1, 0.62))
 	local statusLabel =
-		label(signGui, "", Color3.fromRGB(255, 90, 90), UDim2.fromScale(1, 0.4), UDim2.fromScale(0, 0.6))
+		label(signGui, "", Color3.fromRGB(255, 90, 90), UDim2.fromScale(1, 0.38), UDim2.fromScale(0, 0.62))
 
 	local lockPad = part({
 		Name = "LockPad",
@@ -272,10 +379,21 @@ local function buildPlot(index: number, cframe: CFrame): Plot
 		local z = rowZ[row]
 		local pedestal = part({
 			Name = "Pedestal" .. slot,
-			Size = Vector3.new(1, 6, 6),
-			CFrame = at(x, floorY + 0.5, z) * CFrame.Angles(0, 0, math.rad(90)),
-			Color = Color3.fromRGB(235, 235, 245),
+			Size = Vector3.new(1.6, 6, 6),
+			CFrame = at(x, floorY + 0.8, z) * CFrame.Angles(0, 0, math.rad(90)),
+			Color = Color3.fromRGB(92, 88, 104),
+			Material = Enum.Material.Slate,
 			Shape = Enum.PartType.Cylinder,
+			Parent = model,
+		})
+		part({
+			Name = "PedestalRing",
+			Size = Vector3.new(0.3, 6.5, 6.5),
+			CFrame = at(x, floorY + 1.45, z) * CFrame.Angles(0, 0, math.rad(90)),
+			Color = color,
+			Material = Enum.Material.Neon,
+			Shape = Enum.PartType.Cylinder,
+			CanCollide = false,
 			Parent = model,
 		})
 		pedestal:SetAttribute("Slot", slot)
@@ -292,7 +410,7 @@ local function buildPlot(index: number, cframe: CFrame): Plot
 		})
 		pad:SetAttribute("Slot", slot)
 		table.insert(pads, pad)
-		local padGui = billboard(pad, Vector3.new(0, 1.6, 0), UDim2.fromOffset(110, 30), 45)
+		local padGui = billboard(pad, Vector3.new(0, 1.6, 0), UDim2.fromOffset(100, 26), 35)
 		table.insert(padLabels, label(padGui, "", Color3.fromRGB(150, 255, 150), UDim2.fromScale(1, 1)))
 	end
 

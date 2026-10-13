@@ -11,6 +11,7 @@
 --   Jelly  every slime wobbles; a carried (stolen) one wriggles frantically.
 --   Haunted Rain  during Halloween, Slime Rain turns the sky dark and ghosts
 --          drift down around you.
+--   Bats   during Halloween, a flock of bats circles over the map.
 
 local CollectionService = game:GetService("CollectionService")
 local Debris = game:GetService("Debris")
@@ -487,6 +488,114 @@ local function hauntedRain()
 	end)
 end
 
+-- A bat: a body and two flapping wings.
+local function makeBat(): (Model, BasePart, BasePart, BasePart)
+	local model = Instance.new("Model")
+	model.Name = "Bat"
+	local dark = Color3.fromRGB(20, 15, 25)
+	local body = anchoredPart(Vector3.new(0.8, 0.8, 1.2), dark, Enum.Material.SmoothPlastic)
+	body.Shape = Enum.PartType.Ball
+	body.Parent = model
+	local left = anchoredPart(Vector3.new(2.2, 0.15, 1.2), dark, Enum.Material.SmoothPlastic)
+	left.Parent = model
+	local right = anchoredPart(Vector3.new(2.2, 0.15, 1.2), dark, Enum.Material.SmoothPlastic)
+	right.Parent = model
+	for _, side in { -1, 1 } do
+		local eye = anchoredPart(Vector3.one * 0.18, Color3.fromRGB(255, 60, 40))
+		eye.Name = "Eye" .. side
+		eye.Parent = model
+	end
+	model.Parent = folder
+	return model, body, left, right
+end
+
+local function bats()
+	type Bat = {
+		Model: Model,
+		Body: BasePart,
+		Left: BasePart,
+		Right: BasePart,
+		Radius: number,
+		Height: number,
+		Speed: number,
+		Phase: number,
+		Centre: Vector3,
+	}
+	local flock: { Bat } = {}
+	local active = false
+	local function setActive(on: boolean)
+		if on == active then
+			return
+		end
+		active = on
+		if on then
+			local rng = Random.new()
+			for _ = 1, 14 do
+				local model, body, left, right = makeBat()
+				table.insert(flock, {
+					Model = model,
+					Body = body,
+					Left = left,
+					Right = right,
+					Radius = rng:NextNumber(30, 140),
+					Height = rng:NextNumber(30, 60),
+					Speed = rng:NextNumber(0.25, 0.6) * (if rng:NextNumber() < 0.5 then -1 else 1),
+					Phase = rng:NextNumber(0, math.pi * 2),
+					Centre = Vector3.new(rng:NextNumber(-120, 120), 0, rng:NextNumber(-60, 60)),
+				})
+			end
+		else
+			for _, bat in flock do
+				bat.Model:Destroy()
+			end
+			table.clear(flock)
+		end
+	end
+	local function check()
+		local seasonal = Store.Events.Seasonal
+		setActive(type(seasonal) == "table" and seasonal.Id == "Halloween")
+	end
+	Store.Changed:Connect(function(section: string)
+		if section == "Events" then
+			check()
+		end
+	end)
+	check()
+	local t0 = os.clock()
+	RunService.RenderStepped:Connect(function()
+		if not active then
+			return
+		end
+		local t = os.clock() - t0
+		for _, bat in flock do
+			local a = bat.Phase + t * bat.Speed
+			local position = bat.Centre
+				+ Vector3.new(
+					math.cos(a) * bat.Radius,
+					bat.Height + math.sin(t * 1.7 + bat.Phase) * 3,
+					math.sin(a) * bat.Radius
+				)
+			local ahead = bat.Centre
+				+ Vector3.new(
+					math.cos(a + 0.05 * math.sign(bat.Speed)) * bat.Radius,
+					bat.Height,
+					math.sin(a + 0.05 * math.sign(bat.Speed)) * bat.Radius
+				)
+			local cf = CFrame.lookAt(position, ahead)
+			local flap = math.sin(t * 16 + bat.Phase) * 0.7
+			bat.Body.CFrame = cf
+			bat.Left.CFrame = cf * CFrame.new(-0.4, 0, 0) * CFrame.Angles(0, 0, flap) * CFrame.new(-1.1, 0, 0)
+			bat.Right.CFrame = cf * CFrame.new(0.4, 0, 0) * CFrame.Angles(0, 0, -flap) * CFrame.new(1.1, 0, 0)
+			for _, side in { -1, 1 } do
+				local eye = bat.Model:FindFirstChild("Eye" .. side)
+				if eye and eye:IsA("BasePart") then
+					eye.CFrame = cf * CFrame.new(side * 0.2, 0.15, -0.5)
+				end
+			end
+		end
+	end)
+end
+
 function Effects.Start(screen: ScreenGui)
 	screenGui = screen
 	folder = Instance.new("Folder")
@@ -514,6 +623,7 @@ function Effects.Start(screen: ScreenGui)
 	end)
 	jelly()
 	hauntedRain()
+	bats()
 end
 
 return Effects

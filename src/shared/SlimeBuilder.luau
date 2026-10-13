@@ -351,9 +351,9 @@ function SlimeBuilder.Build(slimeId: string, mutationId: string?, options: Build
 	-- Name tag
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "Info"
-	gui.Size = UDim2.fromOffset(170, if options and options.PriceText then 76 else 58)
+	gui.Size = UDim2.fromOffset(150, if options and options.PriceText then 66 else 50)
 	gui.StudsOffsetWorldSpace = Vector3.new(0, bodySize.Y / 2 + 2.2, 0)
-	gui.MaxDistance = 75
+	gui.MaxDistance = if options and options.PriceText then 60 else 34
 	gui.LightInfluence = 0
 	gui.Adornee = root
 	local layout = Instance.new("UIListLayout")
