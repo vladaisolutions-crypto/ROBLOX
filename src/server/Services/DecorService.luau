@@ -147,19 +147,20 @@ end
 local function halloween()
 	-- Moonlit night: dark purple fog, the neon and lanterns doing the lighting.
 	Lighting.ClockTime = 0
-	Lighting.Brightness = 1.6
-	Lighting.Ambient = Color3.fromRGB(70, 55, 95)
-	Lighting.OutdoorAmbient = Color3.fromRGB(95, 75, 125)
-	Lighting.EnvironmentDiffuseScale = 0.4
+	Lighting.Brightness = 3
+	Lighting.ExposureCompensation = 0.5
+	Lighting.Ambient = Color3.fromRGB(135, 115, 165)
+	Lighting.OutdoorAmbient = Color3.fromRGB(165, 140, 195)
+	Lighting.EnvironmentDiffuseScale = 0.7
 	Lighting.EnvironmentSpecularScale = 0.6
 	local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
 	if atmosphere then
-		atmosphere.Density = 0.42
+		atmosphere.Density = 0.3
 		atmosphere.Offset = 0.1
 		atmosphere.Color = Color3.fromRGB(120, 90, 170)
 		atmosphere.Decay = Color3.fromRGB(60, 30, 90)
 		atmosphere.Glare = 0.3
-		atmosphere.Haze = 2
+		atmosphere.Haze = 1
 	end
 	local grade = Lighting:FindFirstChildOfClass("ColorCorrectionEffect")
 	if grade then
@@ -174,7 +175,7 @@ local function halloween()
 	end
 	local ground = workspace:FindFirstChild("Baseplate")
 	if ground and ground:IsA("BasePart") then
-		ground.Color = Color3.fromRGB(46, 58, 40)
+		ground.Color = Color3.fromRGB(70, 88, 58)
 	end
 
 	local map = workspace:WaitForChild("Map")
