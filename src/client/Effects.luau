@@ -260,34 +260,85 @@ local function characterOf(userId: any): Model?
 end
 
 -- Bat swing: the barrel trail streaks and the air whooshes.
--- A big baseball swing, played on every client by bending the attacker's
--- right shoulder and waist joints (C0, which the Animator leaves alone):
--- wind up over the right shoulder, whip across the body, follow through.
--- Keys: time, arm yaw, arm pitch, waist twist (degrees, torso space).
-local SWING_KEYS = {
-	{ 0, 0, 0, 0 },
-	{ 0.09, -105, 35, -35 },
-	{ 0.19, 70, -5, 40 },
-	{ 0.32, 100, -20, 50 },
-	{ 0.6, 0, 0, 0 },
-}
-local SWING_LENGTH = 0.6
--- A joint we can bend: its frame in the parent part (Motor6D.C0, or the
--- AnimationConstraint's Attachment0 on current avatar rigs).
+-- A full-body baseball swing, played on every client. The attacker's
+-- animations are muted for the swing and every joint is posed by hand:
+-- load (hips and shoulders turn back, bat up over the right shoulder, front
+-- leg lifts), stride and whip the hips round to contact with the arms out,
+-- then a big follow-through wrapping round the left shoulder.
+-- Joint frames are Motor6D.C0 (old rigs) or the AnimationConstraint's
+-- Attachment0 (current rigs); rotations are in the parent part's space.
 type Joint = { Key: Instance, Get: () -> CFrame, Set: (CFrame) -> () }
+type Pose = { [string]: Vector3 } -- joint -> (yaw, pitch, roll) in degrees
+
+local SWING_JOINTS: { [string]: { string } } = {
+	Root = { "Root", "RootJoint" },
+	Waist = { "Waist" },
+	Neck = { "Neck" },
+	RightShoulder = { "RightShoulder", "Right Shoulder" },
+	LeftShoulder = { "LeftShoulder", "Left Shoulder" },
+	RightElbow = { "RightElbow" },
+	LeftElbow = { "LeftElbow" },
+	RightHip = { "RightHip", "Right Hip" },
+	LeftHip = { "LeftHip", "Left Hip" },
+	RightKnee = { "RightKnee" },
+	LeftKnee = { "LeftKnee" },
+}
+local function pose(
+	root: number,
+	waist: number,
+	neck: number,
+	rShoulder: Vector2,
+	lShoulder: Vector2,
+	rElbow: number,
+	lElbow: number,
+	rHip: number,
+	lHip: number,
+	rKnee: number,
+	lKnee: number
+): Pose
+	return {
+		Root = Vector3.new(root, 0, 0),
+		Waist = Vector3.new(waist, 0, 0),
+		Neck = Vector3.new(neck, 0, 0),
+		RightShoulder = Vector3.new(rShoulder.X, rShoulder.Y, 0),
+		LeftShoulder = Vector3.new(lShoulder.X, lShoulder.Y, 0),
+		RightElbow = Vector3.new(0, rElbow, 0),
+		LeftElbow = Vector3.new(0, lElbow, 0),
+		RightHip = Vector3.new(0, rHip, 0),
+		LeftHip = Vector3.new(0, lHip, 0),
+		RightKnee = Vector3.new(0, rKnee, 0),
+		LeftKnee = Vector3.new(0, lKnee, 0),
+	}
+end
+local REST = pose(0, 0, 0, Vector2.zero, Vector2.zero, 0, 0, 0, 0, 0, 0)
+local SWING_KEYS: { { Time: number, Pose: Pose } } = {
+	{ Time = 0, Pose = REST },
+	-- Load: turn back, bat cocked over the right shoulder, front knee up.
+	{ Time = 0.14, Pose = pose(-25, -40, 55, Vector2.new(-50, 115), Vector2.new(-15, 100), 70, 50, 5, 30, -15, -40) },
+	-- Contact: hips and shoulders whipped round, arms out, front foot down.
+	{ Time = 0.24, Pose = pose(25, 30, -45, Vector2.new(25, 90), Vector2.new(40, 88), 10, 5, -15, 10, -30, -5) },
+	-- Follow-through: bat wraps round over the left shoulder.
+	{ Time = 0.38, Pose = pose(45, 55, -75, Vector2.new(95, 120), Vector2.new(85, 110), 55, 65, -20, 5, -35, 0) },
+	{ Time = 0.8, Pose = REST },
+}
+local SWING_LENGTH = 0.8
 local restC0: { [Instance]: CFrame } = setmetatable({}, { __mode = "k" }) :: any
 local swingToken: { [Model]: number } = setmetatable({}, { __mode = "k" }) :: any
 
-local function swingPose(t: number): (number, number, number)
+local function swingPose(t: number): Pose
 	for i = 1, #SWING_KEYS - 1 do
 		local a, b = SWING_KEYS[i], SWING_KEYS[i + 1]
-		if t <= b[1] then
-			local k = (t - a[1]) / (b[1] - a[1])
+		if t <= b.Time then
+			local k = (t - a.Time) / (b.Time - a.Time)
 			k = k * k * (3 - 2 * k) -- smoothstep
-			return a[2] + (b[2] - a[2]) * k, a[3] + (b[3] - a[3]) * k, a[4] + (b[4] - a[4]) * k
+			local out: Pose = {}
+			for name, from in a.Pose do
+				out[name] = from:Lerp(b.Pose[name], k)
+			end
+			return out
 		end
 	end
-	return 0, 0, 0
+	return REST
 end
 
 local function findJoint(character: Model, names: { string }): Joint?
@@ -323,32 +374,59 @@ local function findJoint(character: Model, names: { string }): Joint?
 end
 
 local function swingAnimation(character: Model)
-	local shoulder = findJoint(character, { "RightShoulder", "Right Shoulder" })
-	local waist = findJoint(character, { "Waist", "RootJoint" })
-	if not shoulder then
-		return
-	end
-	local joints: { Joint } = { shoulder }
-	if waist then
-		table.insert(joints, waist)
-	end
-	for _, joint in joints do
-		if not restC0[joint.Key] then
-			restC0[joint.Key] = joint.Get()
+	local joints: { [string]: Joint } = {}
+	for name, candidates in SWING_JOINTS do
+		local joint = findJoint(character, candidates)
+		if joint then
+			joints[name] = joint
+			if not restC0[joint.Key] then
+				restC0[joint.Key] = joint.Get()
+			end
 		end
 	end
+	local anchor = joints.RightShoulder
+	if not anchor then
+		return
+	end
+	-- Mute the animations so the pose is ours (idle, walk, tool hold).
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local animator = humanoid and humanoid:FindFirstChildOfClass("Animator")
+	local muted: { AnimationTrack } = {}
+	local playedConnection: RBXScriptConnection? = nil
+	if animator then
+		for _, track in animator:GetPlayingAnimationTracks() do
+			track:AdjustWeight(0.001, 0.06)
+			table.insert(muted, track)
+		end
+		playedConnection = animator.AnimationPlayed:Connect(function(track: AnimationTrack)
+			track:AdjustWeight(0.001, 0)
+			table.insert(muted, track)
+		end)
+	end
+
 	local token = (swingToken[character] or 0) + 1
 	swingToken[character] = token
 	local start = os.clock()
 	local connection
+	local function stop()
+		connection:Disconnect()
+		if playedConnection then
+			playedConnection:Disconnect()
+		end
+		for _, track in muted do
+			if track.IsPlaying then
+				track:AdjustWeight(1, 0.15)
+			end
+		end
+	end
 	connection = RunService.RenderStepped:Connect(function()
 		local t = os.clock() - start
-		if swingToken[character] ~= token or not shoulder.Key.Parent then
-			connection:Disconnect()
+		if swingToken[character] ~= token or not anchor.Key.Parent then
+			stop()
 			return
 		end
 		if t >= SWING_LENGTH then
-			connection:Disconnect()
+			stop()
 			for _, joint in joints do
 				local rest = restC0[joint.Key]
 				if rest then
@@ -358,18 +436,19 @@ local function swingAnimation(character: Model)
 			end
 			return
 		end
-		local yaw, pitch, twist = swingPose(t)
-		-- Rotate in the parent part's space, about the joint itself.
-		local rest = restC0[shoulder.Key]
-		shoulder.Set(
-			CFrame.new(rest.Position)
-				* CFrame.Angles(0, math.rad(yaw), 0)
-				* CFrame.Angles(math.rad(pitch), 0, 0)
-				* rest.Rotation
-		)
-		if waist then
-			local waistRest = restC0[waist.Key]
-			waist.Set(CFrame.new(waistRest.Position) * CFrame.Angles(0, math.rad(twist), 0) * waistRest.Rotation)
+		local current = swingPose(t)
+		for name, joint in joints do
+			local angles = current[name]
+			local rest = restC0[joint.Key]
+			if angles and rest then
+				joint.Set(
+					CFrame.new(rest.Position)
+						* CFrame.Angles(0, math.rad(angles.X), 0)
+						* CFrame.Angles(math.rad(angles.Y), 0, 0)
+						* CFrame.Angles(0, 0, math.rad(angles.Z))
+						* rest.Rotation
+				)
+			end
 		end
 	end)
 end
@@ -384,7 +463,7 @@ local function onSwing(data: { [string]: any })
 		return
 	end
 	swingAnimation(character)
-	task.delay(0.08, function()
+	task.delay(0.15, function()
 		play(Sounds.Whoosh, root.Position, 0.6, 0.9 + math.random() * 0.25)
 	end)
 	local trail = character:FindFirstChild("SwingTrail", true)
