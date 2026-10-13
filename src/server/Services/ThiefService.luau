@@ -65,6 +65,7 @@ local NetService = require(script.Parent.NetService)
 local PlotService = require(script.Parent.PlotService)
 local StealService = require(script.Parent.StealService)
 local TelemetryService = require(script.Parent.TelemetryService)
+local WorldService = require(script.Parent.WorldService)
 
 type Thief = {
 	Owner: Player,
@@ -79,7 +80,8 @@ type Thief = {
 
 local ThiefService = {}
 
-local thieves: { [Player]: Thief } = {}
+-- The thieves raiding each player's base right now (a raid is a small gang).
+local thieves: { [Player]: { Thief } } = {}
 local nextVisit: { [Player]: number } = {}
 
 local function randomInterval(): number
@@ -200,8 +202,9 @@ local function buildThief(): (Model, Humanoid, BasePart)
 	return model, humanoid, root
 end
 
--- The slime the thief goes for: random, but never the owner's best one.
-local function pickSlot(owner: Player): number?
+-- The slime a thief goes for: random, never the owner's best one, and not
+-- one another thief in the gang is already after.
+local function pickSlot(owner: Player, taken: { [number]: boolean }): number?
 	local slots: { { Slot: number, Income: number } } = {}
 	for slot = 1, Economy.AbsoluteMaxSlots do
 		local data = EconomyService.GetSlot(owner, slot)
@@ -216,7 +219,13 @@ local function pickSlot(owner: Player): number?
 		return a.Income > b.Income
 	end)
 	table.remove(slots, 1)
-	return slots[math.random(1, #slots)].Slot
+	local free = {}
+	for _, entry in slots do
+		if not taken[entry.Slot] then
+			table.insert(free, entry.Slot)
+		end
+	end
+	return if #free > 0 then free[math.random(1, #free)] else nil
 end
 
 -- Walk to a point; false if the thief was stopped or got stuck.
@@ -367,10 +376,18 @@ local function finish(thief: Thief, outcome: string, by: Player?)
 		return
 	end
 	thief.Done = true
-	if thieves[thief.Owner] == thief then
-		thieves[thief.Owner] = nil
+	local gang = thieves[thief.Owner]
+	if gang then
+		local index = table.find(gang, thief)
+		if index then
+			table.remove(gang, index)
+		end
+		-- The next raid is scheduled once the whole gang is gone.
+		if #gang == 0 then
+			thieves[thief.Owner] = nil
+			nextVisit[thief.Owner] = os.clock() + randomInterval()
+		end
 	end
-	nextVisit[thief.Owner] = os.clock() + randomInterval()
 	local owner = thief.Owner
 	local carrying = thief.Carry ~= nil
 	if thief.Carry then
@@ -443,17 +460,9 @@ local function finish(thief: Thief, outcome: string, by: Player?)
 	end
 end
 
-local function visit(owner: Player)
-	local plot = PlotService.GetPlot(owner)
-	if not plot or PlotService.IsLocked(owner) then
-		nextVisit[owner] = os.clock() + randomInterval()
-		return
-	end
-	local slot = pickSlot(owner)
-	if not slot then
-		nextVisit[owner] = os.clock() + randomInterval()
-		return
-	end
+-- One thief of a raid: sneak to the gate, grab `slot`, run for the edge.
+-- `lane` spreads the gang out so they don't walk in single file.
+local function visit(owner: Player, plot: WorldService.Plot, slot: number, lane: number)
 	local pedestal = plot.Pedestals[slot]
 	local cf = plot.CFrame
 	local D = World.PlotDepth
@@ -464,7 +473,7 @@ local function visit(owner: Player)
 	local grabSpot = cf:PointToWorldSpace(Vector3.new(aisleX, 3, pedLocal.Z))
 	-- He sneaks in from the nearest end of the map, along the belt side.
 	local side = if cf.Position.X >= 0 then 1 else -1
-	local laneZ = math.sign(cf.Position.Z) * (World.BeltWidth / 2 + 11)
+	local laneZ = math.sign(cf.Position.Z) * (World.BeltWidth / 2 + 11 + lane)
 	local edge = Vector3.new(side * (World.MapSizeX / 2 - 12), 3, laneZ)
 
 	local model, humanoid, root = buildThief()
@@ -481,15 +490,13 @@ local function visit(owner: Player)
 		Carry = nil,
 		Done = false,
 	}
-	thieves[owner] = thief
+	local gang = thieves[owner]
+	if not gang then
+		gang = {}
+		thieves[owner] = gang
+	end
+	table.insert(gang, thief)
 	say(thief, "Arrive")
-	NetService.FxTo(owner, "Thief", { Position = root.Position })
-	NetService.Notify(owner, "😈 A THIEF is sneaking to your base! Bonk him or lock it!", "Bad")
-	NetService.FxTo(owner, "Offer", {
-		Product = "InstantLock",
-		Text = "A thief is coming! Lock your base right now.",
-		Urgent = true,
-	})
 
 	-- To the gate along the lane, then the gate itself.
 	if not walkTo(thief, Vector3.new(gateFront.X, 3, laneZ), 40) or not walkTo(thief, gateFront, 15) then
@@ -569,9 +576,58 @@ local function visit(owner: Player)
 	finish(thief, "Escaped")
 end
 
+-- A raid: a gang of thieves, each after a different slime, a few seconds apart.
+local function raid(owner: Player)
+	local plot = PlotService.GetPlot(owner)
+	if not plot or PlotService.IsLocked(owner) then
+		nextVisit[owner] = os.clock() + randomInterval()
+		return
+	end
+	local taken: { [number]: boolean } = {}
+	local slots: { number } = {}
+	for _ = 1, Economy.ThievesPerRaid do
+		local slot = pickSlot(owner, taken)
+		if slot then
+			taken[slot] = true
+			table.insert(slots, slot)
+		end
+	end
+	if #slots == 0 then
+		nextVisit[owner] = os.clock() + randomInterval()
+		return
+	end
+	thieves[owner] = {}
+	NetService.FxTo(owner, "Thief", {})
+	NetService.Notify(
+		owner,
+		if #slots > 1
+			then "😈 " .. #slots .. " THIEVES are sneaking to your base! Bonk them or lock it!"
+			else "😈 A THIEF is sneaking to your base! Bonk him or lock it!",
+		"Bad"
+	)
+	NetService.FxTo(owner, "Offer", {
+		Product = "InstantLock",
+		Text = "Thieves are coming! Lock your base right now.",
+		Urgent = true,
+	})
+	for index, slot in slots do
+		task.delay((index - 1) * Economy.ThiefRaidSpacing, function()
+			if owner.Parent and thieves[owner] then
+				visit(owner, plot, slot, (index - 1) * 4)
+			end
+		end)
+	end
+end
+
 -- Bat hit on an NPC thief: ragdoll him away and end the visit.
 local function onSwing(attacker: Player, attackerRoot: BasePart, range: number, force: number)
-	for _, thief in thieves do
+	local everyone: { Thief } = {}
+	for _, gang in thieves do
+		for _, thief in gang do
+			table.insert(everyone, thief)
+		end
+	end
+	for _, thief in everyone do
 		if not thief.Done and thief.Model.Parent then
 			local offset = thief.Root.Position - attackerRoot.Position
 			local distance = offset.Magnitude
@@ -618,11 +674,10 @@ end
 function ThiefService.Init()
 	StealService.Swung:Connect(onSwing)
 	PlotService.Locked:Connect(function(player: Player)
-		local thief = thieves[player]
-		if thief and not thief.Done then
-			-- Locking while he is inside traps him; outside, he turns back.
-			local plot = PlotService.GetPlot(player)
-			if plot then
+		local plot = PlotService.GetPlot(player)
+		for _, thief in table.clone(thieves[player] or {} :: { Thief }) do
+			if not thief.Done and plot then
+				-- Locking while one is inside traps him; outside, he turns back at the gate.
 				local rel = plot.CFrame:PointToObjectSpace(thief.Root.Position)
 				if math.abs(rel.X) < World.PlotWidth / 2 + 2 and rel.Z < World.PlotDepth / 2 + 8 then
 					finish(thief, "Locked")
@@ -637,10 +692,10 @@ function ThiefService.Init()
 		nextVisit[player] = os.clock() + Economy.ThiefFirstDelay
 	end
 	Players.PlayerRemoving:Connect(function(player)
-		local thief = thieves[player]
-		if thief then
+		for _, thief in table.clone(thieves[player] or {} :: { Thief }) do
 			finish(thief, "Cancelled")
 		end
+		thieves[player] = nil
 		nextVisit[player] = nil
 	end)
 end
@@ -653,7 +708,7 @@ function ThiefService.Start()
 			for player, at in nextVisit do
 				if now >= at and not thieves[player] and player.Parent then
 					nextVisit[player] = now + 9999 -- set properly when the visit ends
-					task.spawn(visit, player)
+					task.spawn(raid, player)
 				end
 			end
 		end
