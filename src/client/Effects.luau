@@ -272,7 +272,10 @@ local SWING_KEYS = {
 	{ 0.6, 0, 0, 0 },
 }
 local SWING_LENGTH = 0.6
-local restC0: { [Motor6D]: CFrame } = setmetatable({}, { __mode = "k" }) :: any
+-- A joint we can bend: its frame in the parent part (Motor6D.C0, or the
+-- AnimationConstraint's Attachment0 on current avatar rigs).
+type Joint = { Key: Instance, Get: () -> CFrame, Set: (CFrame) -> () }
+local restC0: { [Instance]: CFrame } = setmetatable({}, { __mode = "k" }) :: any
 local swingToken: { [Model]: number } = setmetatable({}, { __mode = "k" }) :: any
 
 local function swingPose(t: number): (number, number, number)
@@ -287,29 +290,51 @@ local function swingPose(t: number): (number, number, number)
 	return 0, 0, 0
 end
 
-local function findMotor(character: Model, names: { string }): Motor6D?
+local function findJoint(character: Model, names: { string }): Joint?
 	for _, name in names do
-		local motor = character:FindFirstChild(name, true)
-		if motor and motor:IsA("Motor6D") then
-			return motor
+		local joint = character:FindFirstChild(name, true)
+		if joint and joint:IsA("Motor6D") then
+			local motor = joint
+			local found: Joint = {
+				Key = motor,
+				Get = function()
+					return motor.C0
+				end,
+				Set = function(cf: CFrame)
+					motor.C0 = cf
+				end,
+			}
+			return found
+		elseif joint and joint:IsA("AnimationConstraint") and joint.Attachment0 then
+			local attachment = joint.Attachment0 :: Attachment
+			local found: Joint = {
+				Key = attachment,
+				Get = function()
+					return attachment.CFrame
+				end,
+				Set = function(cf: CFrame)
+					attachment.CFrame = cf
+				end,
+			}
+			return found
 		end
 	end
 	return nil
 end
 
 local function swingAnimation(character: Model)
-	local shoulder = findMotor(character, { "RightShoulder", "Right Shoulder" })
-	local waist = findMotor(character, { "Waist", "RootJoint" })
+	local shoulder = findJoint(character, { "RightShoulder", "Right Shoulder" })
+	local waist = findJoint(character, { "Waist", "RootJoint" })
 	if not shoulder then
 		return
 	end
-	local motors: { Motor6D } = { shoulder }
+	local joints: { Joint } = { shoulder }
 	if waist then
-		table.insert(motors, waist)
+		table.insert(joints, waist)
 	end
-	for _, motor in motors do
-		if not restC0[motor] then
-			restC0[motor] = motor.C0
+	for _, joint in joints do
+		if not restC0[joint.Key] then
+			restC0[joint.Key] = joint.Get()
 		end
 	end
 	local token = (swingToken[character] or 0) + 1
@@ -318,28 +343,33 @@ local function swingAnimation(character: Model)
 	local connection
 	connection = RunService.RenderStepped:Connect(function()
 		local t = os.clock() - start
-		if swingToken[character] ~= token or not shoulder.Parent then
+		if swingToken[character] ~= token or not shoulder.Key.Parent then
 			connection:Disconnect()
 			return
 		end
 		if t >= SWING_LENGTH then
 			connection:Disconnect()
-			for _, motor in motors do
-				motor.C0 = restC0[motor]
-				restC0[motor] = nil
+			for _, joint in joints do
+				local rest = restC0[joint.Key]
+				if rest then
+					joint.Set(rest)
+				end
+				restC0[joint.Key] = nil
 			end
 			return
 		end
 		local yaw, pitch, twist = swingPose(t)
 		-- Rotate in the parent part's space, about the joint itself.
-		local rest = restC0[shoulder]
-		shoulder.C0 = CFrame.new(rest.Position)
-			* CFrame.Angles(0, math.rad(yaw), 0)
-			* CFrame.Angles(math.rad(pitch), 0, 0)
-			* rest.Rotation
+		local rest = restC0[shoulder.Key]
+		shoulder.Set(
+			CFrame.new(rest.Position)
+				* CFrame.Angles(0, math.rad(yaw), 0)
+				* CFrame.Angles(math.rad(pitch), 0, 0)
+				* rest.Rotation
+		)
 		if waist then
-			local waistRest = restC0[waist]
-			waist.C0 = CFrame.new(waistRest.Position) * CFrame.Angles(0, math.rad(twist), 0) * waistRest.Rotation
+			local waistRest = restC0[waist.Key]
+			waist.Set(CFrame.new(waistRest.Position) * CFrame.Angles(0, math.rad(twist), 0) * waistRest.Rotation)
 		end
 	end)
 end

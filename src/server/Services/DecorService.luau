@@ -4,6 +4,7 @@
 -- trees, gravestones, jack-o'-lanterns along the belt and on every base gate,
 -- and the belt glowing orange and purple. (Bats are drawn by the client.)
 
+local CollectionService = game:GetService("CollectionService")
 local Lighting = game:GetService("Lighting")
 local TweenService = game:GetService("TweenService")
 
@@ -579,10 +580,33 @@ local function halloween()
 	end
 end
 
+-- Tone the map's neon and lights down by about half so slime names and
+-- prices stay easy to read. Slimes themselves are left alone.
+local function softenGlow()
+	local map = workspace:WaitForChild("Map")
+	for _, item in map:GetDescendants() do
+		if item:IsA("BasePart") and item.Material == Enum.Material.Neon then
+			local model = item:FindFirstAncestorWhichIsA("Model")
+			if not (model and CollectionService:HasTag(model, "Slime")) then
+				local h, sat, v = item.Color:ToHSV()
+				item.Color = Color3.fromHSV(h, sat, v * 0.6)
+			end
+		elseif item:IsA("PointLight") then
+			item.Brightness *= 0.5
+		end
+	end
+	local bloom = Lighting:FindFirstChildOfClass("BloomEffect")
+	if bloom then
+		bloom.Intensity *= 0.5
+		bloom.Threshold = math.max(bloom.Threshold, 1.5)
+	end
+end
+
 function DecorService.Start()
 	if EventService.SeasonalActive("Halloween") then
 		halloween()
 	end
+	softenGlow()
 end
 
 return DecorService

@@ -55,6 +55,31 @@ local function ragdoll(target: Player, seconds: number): boolean
 	local token = (ragdolled[character] or 0) + 1
 	ragdolled[character] = token
 
+	for _, joint in character:GetDescendants() do
+		-- Current avatar rigs: kinematic AnimationConstraints, each with a
+		-- ball socket beside it. Switching the animated joint off is the ragdoll.
+		if joint:IsA("AnimationConstraint") and joint.Name ~= "Root" then
+			local a0 = joint.Attachment0
+			local a1 = joint.Attachment1
+			if a0 and a1 and a1.Parent then
+				local part1 = a1.Parent
+				local existing = part1:FindFirstChildOfClass("BallSocketConstraint")
+				if existing then
+					existing.Enabled = true
+				else
+					local ball = Instance.new("BallSocketConstraint")
+					ball.Name = "RagdollSocket" .. joint.Name
+					ball.Attachment0, ball.Attachment1 = a0, a1
+					ball.LimitsEnabled = true
+					ball.UpperAngle = 70
+					ball.TwistLimitsEnabled = true
+					ball.TwistLowerAngle, ball.TwistUpperAngle = -45, 45
+					ball.Parent = part1
+				end
+				joint.Enabled = false
+			end
+		end
+	end
 	for _, motor in character:GetDescendants() do
 		if motor:IsA("Motor6D") and motor.Part0 and motor.Part1 and motor.Part0 ~= root and motor.Part1 ~= root then
 			local part0, part1 = motor.Part0 :: BasePart, motor.Part1 :: BasePart
@@ -112,6 +137,8 @@ local function ragdoll(target: Player, seconds: number): boolean
 		ragdolled[character] = nil
 		for _, item in character:GetDescendants() do
 			if item:IsA("Motor6D") then
+				item.Enabled = true
+			elseif item:IsA("AnimationConstraint") then
 				item.Enabled = true
 			elseif item:IsA("BallSocketConstraint") and item.Name:sub(1, 13) == "RagdollSocket" then
 				item.Enabled = false
