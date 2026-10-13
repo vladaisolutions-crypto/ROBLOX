@@ -395,19 +395,19 @@ local function ghost(parent: Instance, position: Vector3, rng: Random)
 end
 
 local function halloween()
-	-- Moonlit night: dark purple fog, the neon and lanterns doing the lighting.
-	Lighting.ClockTime = 0
+	-- Purple-orange twilight: spooky but bright enough to see everything.
+	Lighting.ClockTime = 18.4
 	Lighting.Brightness = 3
-	Lighting.ExposureCompensation = 0.5
-	Lighting.Ambient = Color3.fromRGB(135, 115, 165)
-	Lighting.OutdoorAmbient = Color3.fromRGB(165, 140, 195)
+	Lighting.ExposureCompensation = 0.7
+	Lighting.Ambient = Color3.fromRGB(160, 140, 185)
+	Lighting.OutdoorAmbient = Color3.fromRGB(190, 165, 210)
 	Lighting.EnvironmentDiffuseScale = 0.7
 	Lighting.EnvironmentSpecularScale = 0.6
 	local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
 	if atmosphere then
-		atmosphere.Density = 0.3
+		atmosphere.Density = 0.25
 		atmosphere.Offset = 0.1
-		atmosphere.Color = Color3.fromRGB(120, 90, 170)
+		atmosphere.Color = Color3.fromRGB(200, 120, 170)
 		atmosphere.Decay = Color3.fromRGB(60, 30, 90)
 		atmosphere.Glare = 0.3
 		atmosphere.Haze = 1
