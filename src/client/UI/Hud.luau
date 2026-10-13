@@ -140,9 +140,101 @@ function Hud.Create(screen: ScreenGui, menus: Menus)
 	toastList.Parent = toasts
 	local toastCount = 0
 
-	local announce = Kit.Label(screen, "", UDim2.fromScale(0.7, 0.06), UDim2.fromScale(0.15, 0.16))
-	announce.TextTransparency = 1
-	local announceId = 0
+	-- Announcement banner: a dark pill that drops in from the top with a
+	-- bounce, a shine sweeps across the text, then it slides back up.
+	-- Announcements queue up so none are lost or overwritten.
+	local announceQueue: { { Text: string, Color: Color3 } } = {}
+	local announcing = false
+	local function showAnnouncement(text: string, color: Color3)
+		local holder = Instance.new("Frame")
+		holder.Name = "Announcement"
+		holder.AnchorPoint = Vector2.new(0.5, 0)
+		holder.Position = UDim2.new(0.5, 0, 0, -80)
+		holder.Size = UDim2.fromOffset(0, 46)
+		holder.AutomaticSize = Enum.AutomaticSize.X
+		holder.BackgroundColor3 = Color3.fromRGB(18, 14, 28)
+		holder.BackgroundTransparency = 0.15
+		holder.ZIndex = 50
+		holder.Parent = screen
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(1, 0)
+		corner.Parent = holder
+		local padding = Instance.new("UIPadding")
+		padding.PaddingLeft = UDim.new(0, 26)
+		padding.PaddingRight = UDim.new(0, 26)
+		padding.Parent = holder
+		local stroke = Instance.new("UIStroke")
+		stroke.Thickness = 3
+		stroke.Color = color
+		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		stroke.Parent = holder
+		local scale = Instance.new("UIScale")
+		scale.Scale = 0.6
+		scale.Parent = holder
+
+		local label = Instance.new("TextLabel")
+		label.BackgroundTransparency = 1
+		label.AutomaticSize = Enum.AutomaticSize.X
+		label.Size = UDim2.fromScale(0, 1)
+		label.Font = Kit.Font
+		label.Text = text
+		label.TextSize = 26
+		label.TextColor3 = Color3.new(1, 1, 1)
+		label.ZIndex = 51
+		label.Parent = holder
+		local textStroke = Instance.new("UIStroke")
+		textStroke.Thickness = 2
+		textStroke.Color = Color3.new(0, 0, 0)
+		textStroke.Parent = label
+		-- Text tinted in the rarity colour, with a white shine band.
+		local shine = Instance.new("UIGradient")
+		shine.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, color),
+			ColorSequenceKeypoint.new(0.42, color),
+			ColorSequenceKeypoint.new(0.5, Color3.new(1, 1, 1)),
+			ColorSequenceKeypoint.new(0.58, color),
+			ColorSequenceKeypoint.new(1, color),
+		})
+		shine.Offset = Vector2.new(-1, 0)
+		shine.Parent = label
+
+		local inInfo = TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+		TweenService:Create(holder, inInfo, { Position = UDim2.new(0.5, 0, 0, 74) }):Play()
+		TweenService:Create(scale, inInfo, { Scale = 1 }):Play()
+		task.delay(0.35, function()
+			TweenService:Create(
+				shine,
+				TweenInfo.new(0.9, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut),
+				{ Offset = Vector2.new(1, 0) }
+			):Play()
+		end)
+		-- Gentle pulse of the border while it is up.
+		TweenService:Create(
+			stroke,
+			TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+			{ Thickness = 5 }
+		):Play()
+
+		task.wait(3.2)
+		local outInfo = TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+		TweenService:Create(holder, outInfo, { Position = UDim2.new(0.5, 0, 0, -80) }):Play()
+		TweenService:Create(scale, outInfo, { Scale = 0.7 }):Play()
+		task.wait(0.35)
+		holder:Destroy()
+	end
+	local function pumpAnnouncements()
+		if announcing then
+			return
+		end
+		announcing = true
+		task.spawn(function()
+			while #announceQueue > 0 do
+				local item = table.remove(announceQueue, 1) :: { Text: string, Color: Color3 }
+				showAnnouncement(item.Text, item.Color)
+			end
+			announcing = false
+		end)
+	end
 
 	local KIND_COLORS: { [string]: Color3 } = {
 		Info = Kit.Colors.PanelLight,
@@ -167,17 +259,12 @@ function Hud.Create(screen: ScreenGui, menus: Menus)
 		end
 	end)
 	Remotes.Get("Announce").OnClientEvent:Connect(function(text: string, color: Color3)
-		announceId += 1
-		local id = announceId
-		announce.Text = text
-		announce.TextColor3 = color
-		announce.TextTransparency = 0
-		Kit.Pop(announce)
-		task.delay(4, function()
-			if announceId == id then
-				TweenService:Create(announce, TweenInfo.new(0.6), { TextTransparency = 1 }):Play()
-			end
-		end)
+		-- Keep the queue short so a burst never lags far behind.
+		if #announceQueue >= 3 then
+			table.remove(announceQueue, 1)
+		end
+		table.insert(announceQueue, { Text = text, Color = color })
+		pumpAnnouncements()
 	end)
 
 	-- Cash "+$X" popups when cash jumps (collecting, rewards)
