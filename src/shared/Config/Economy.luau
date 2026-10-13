@@ -61,24 +61,24 @@ local Economy = {
 	-- Thief raids (ThiefService): every few minutes a wave of thieves hits
 	-- every base on the server at once; anyone can bonk any thief.
 	ThiefFirstDelay = 150, -- seconds after the server starts before the first raid
-	ThiefMinInterval = 180, -- seconds between raids (random in this range)
-	ThiefMaxInterval = 330,
+	ThiefMinInterval = 150, -- seconds between raids (random in this range)
+	ThiefMaxInterval = 270,
 	ThiefMinSlimes = 3, -- only bases with at least this many (they skip the best one)
-	-- Thieves per base: weight for 1, 2, 3, 4 (each after a different slime).
-	ThiefGangWeights = { 10, 40, 35, 15 },
-	RaidMaxThieves = 16, -- cap for the whole server per raid
+	-- Thieves per base: weight for 1, 2, 3, 4, 5 (each after a different slime).
+	ThiefGangWeights = { 0, 20, 35, 30, 15 },
+	RaidMaxThieves = 26, -- cap for the whole server per raid (each thief has a Highlight; Roblox shows 31)
 	-- Thieves fight back: a player right in front of one may get shoved over.
 	ThiefShoveRange = 5,
-	ThiefShoveChance = 0.5,
-	ThiefShoveCooldown = 3,
+	ThiefShoveChance = 0.7,
+	ThiefShoveCooldown = 2.5,
 	ThiefShoveForce = 30,
 	ThiefShoveStun = 1.2,
 	ThiefSpacingMin = 1.5, -- seconds between thieves in a raid (random in this range)
 	ThiefSpacingMax = 5,
 	ThiefWalkSpeed = 14, -- sneaking in
-	ThiefCarrySpeed = 17, -- running away; players walk 18, so it's a real chase
+	ThiefCarrySpeed = 17.5, -- running away; players walk 18, so it's a real chase
 	ThiefSpeedMin = 0.9, -- each thief's speed is scaled by a random amount in this range
-	ThiefSpeedMax = 1.08,
+	ThiefSpeedMax = 1.02, -- keep the fastest carrier (17.5 x 1.02) just under the players' 18
 	ThiefGrabSeconds = 2,
 	ThiefRewardMinutes = 1, -- bonk reward: minutes of the owner's base income
 	ThiefRewardMinimum = 150,
