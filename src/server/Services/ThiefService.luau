@@ -6,8 +6,34 @@
 -- If he reaches the edge, the slime is gone (its stored cash is paid out).
 -- He never takes the owner's best slime.
 
+local PathfindingService = game:GetService("PathfindingService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+
+-- Roblox's default R15 animations, so the thief walks, runs and jumps.
+local ANIMATIONS: { [string]: string } = {
+	Idle = "rbxassetid://507766666",
+	Walk = "rbxassetid://507777826",
+	Run = "rbxassetid://507767714",
+	Jump = "rbxassetid://507765000",
+	Fall = "rbxassetid://507767968",
+}
+
+-- What he says (speech bubble over his head).
+local LINES: { [string]: { string } } = {
+	Arrive = {
+		"Heh heh heh... 😏",
+		"Ooh, what a nice base!",
+		"Shhh... nobody look!",
+		"Slimes, slimes, slimes... 🤑",
+	},
+	Sneak = { "Tiptoe, tiptoe... 🤫", "Nobody's home... right?", "Just looking! 👀" },
+	Grab = { "YOINK! 😈", "Mine now!", "Shiny! Thanks! ✨", "Ooh, this one's heavy!" },
+	Run = { "Can't catch me! 😜", "Too slow!", "Bye bye slime! 👋", "Nyeh nyeh! 😝", "Catch me if you can!" },
+	Locked = { "Aww, it's locked! 😤", "Hey! No fair! 😠", "Next time... 😒" },
+	Bonked = { "OUCH! 😵", "OWWW!", "Not the bat! 😭" },
+	Escaped = { "Hehe, see ya! 💨", "Too easy! 😎" },
+}
 
 local Shared = game:GetService("ReplicatedStorage").Shared
 local Economy = require(Shared.Config.Economy)
@@ -30,6 +56,7 @@ type Thief = {
 	Slot: number,
 	Carry: Model?,
 	Done: boolean,
+	Bubble: TextLabel?,
 }
 
 local ThiefService = {}
@@ -98,6 +125,55 @@ local function buildThief(): (Model, Humanoid, BasePart)
 		label.TextStrokeTransparency = 0
 		label.Parent = gui
 	end
+	-- Animations: walk/run while moving, idle when still, jump and fall.
+	local animator: Animator = humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator")
+	animator.Parent = humanoid
+	local tracks: { [string]: AnimationTrack } = {}
+	for name, id in ANIMATIONS do
+		local animation = Instance.new("Animation")
+		animation.AnimationId = id
+		local ok, track = pcall(animator.LoadAnimation, animator, animation)
+		if ok and track then
+			track.Looped = name ~= "Jump"
+			tracks[name] = track
+		end
+	end
+	local current: AnimationTrack? = nil
+	local function play(name: string, speed: number?)
+		local track = tracks[name]
+		if not track then
+			return
+		end
+		if current ~= track then
+			if current then
+				current:Stop(0.15)
+			end
+			track:Play(0.15)
+			current = track
+		end
+		track:AdjustSpeed(speed or 1)
+	end
+	humanoid.Running:Connect(function(speed: number)
+		if speed > 11 then
+			play("Run", speed / 16)
+		elseif speed > 0.5 then
+			play("Walk", speed / 9)
+		else
+			play("Idle")
+		end
+	end)
+	humanoid.Jumping:Connect(function(active: boolean)
+		if active then
+			play("Jump")
+		end
+	end)
+	humanoid.FreeFalling:Connect(function(active: boolean)
+		if active then
+			play("Fall")
+		end
+	end)
+	play("Idle")
+
 	local outline = Instance.new("Highlight")
 	outline.FillTransparency = 1
 	outline.OutlineColor = Color3.fromRGB(255, 60, 60)
@@ -126,15 +202,124 @@ local function pickSlot(owner: Player): number?
 end
 
 -- Walk to a point; false if the thief was stopped or got stuck.
-local function walkTo(thief: Thief, target: Vector3, timeout: number): boolean
+-- A speech bubble over his head for a few seconds.
+local function say(thief: Thief, kind: string)
+	local lines = LINES[kind]
+	local head = thief.Model:FindFirstChild("Head")
+	if not lines or not head or not head:IsA("BasePart") then
+		return
+	end
+	local text = lines[math.random(1, #lines)]
+	local bubble = thief.Bubble
+	if not bubble or not bubble.Parent then
+		local gui = Instance.new("BillboardGui")
+		gui.Name = "Speech"
+		gui.Size = UDim2.fromOffset(220, 46)
+		gui.StudsOffsetWorldSpace = Vector3.new(0, 4.6, 0)
+		gui.MaxDistance = 120
+		gui.LightInfluence = 0
+		gui.Parent = head
+		local frame = Instance.new("TextLabel")
+		frame.AnchorPoint = Vector2.new(0.5, 1)
+		frame.Position = UDim2.fromScale(0.5, 1)
+		frame.AutomaticSize = Enum.AutomaticSize.X
+		frame.Size = UDim2.fromScale(0, 1)
+		frame.BackgroundColor3 = Color3.new(1, 1, 1)
+		frame.Font = Enum.Font.FredokaOne
+		frame.TextSize = 22
+		frame.TextColor3 = Color3.fromRGB(30, 25, 40)
+		frame.Parent = gui
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 12)
+		corner.Parent = frame
+		local padding = Instance.new("UIPadding")
+		padding.PaddingLeft = UDim.new(0, 10)
+		padding.PaddingRight = UDim.new(0, 10)
+		padding.Parent = frame
+		bubble = frame
+		thief.Bubble = frame
+	end
+	local label = bubble :: TextLabel
+	label.Text = text
+	label.Visible = true
+	task.delay(2.5, function()
+		if label.Parent and label.Text == text then
+			label.Visible = false
+		end
+	end)
+end
+
+-- Walk to a point along a computed path. Gets himself unstuck: if he has
+-- not moved for a second he jumps and sidesteps, then re-plans the path,
+-- and as a last resort hops a few studs on. False if stopped or timed out.
+local function walkTo(thief: Thief, target: Vector3, timeout: number, hops: boolean?): boolean
+	local root, humanoid = thief.Root, thief.Humanoid
 	local started = os.clock()
+	local rng = Random.new()
+	local function plan(): { PathWaypoint }?
+		local path = PathfindingService:CreatePath({
+			AgentRadius = 1.6,
+			AgentHeight = 5,
+			AgentCanJump = true,
+			WaypointSpacing = 5,
+		})
+		local ok = pcall(function()
+			path:ComputeAsync(root.Position, target)
+		end)
+		if ok and path.Status == Enum.PathStatus.Success then
+			return path:GetWaypoints()
+		end
+		return nil
+	end
+	local waypoints = plan()
+	local index = 2
+	local lastPosition, lastCheck, stuck = root.Position, os.clock(), 0
+	local nextHop = os.clock() + rng:NextNumber(1.5, 3)
 	while not thief.Done and os.clock() - started < timeout do
-		local flat = Vector3.new(target.X - thief.Root.Position.X, 0, target.Z - thief.Root.Position.Z)
+		local flat = Vector3.new(target.X - root.Position.X, 0, target.Z - root.Position.Z)
 		if flat.Magnitude < 2.5 then
 			return true
 		end
-		thief.Humanoid:MoveTo(target)
-		task.wait(0.2)
+		local goal = target
+		if waypoints and waypoints[index] then
+			local waypoint = waypoints[index]
+			goal = waypoint.Position
+			local toWaypoint = Vector3.new(goal.X - root.Position.X, 0, goal.Z - root.Position.Z)
+			if toWaypoint.Magnitude < 2.5 then
+				index += 1
+				if waypoints[index] and waypoints[index].Action == Enum.PathWaypointAction.Jump then
+					humanoid.Jump = true
+				end
+			end
+		end
+		humanoid:MoveTo(goal)
+		-- A cheeky hop now and then while running away.
+		if hops and os.clock() > nextHop then
+			humanoid.Jump = true
+			nextHop = os.clock() + rng:NextNumber(1.5, 3)
+		end
+		if os.clock() - lastCheck > 1 then
+			if (root.Position - lastPosition).Magnitude < 1.5 then
+				stuck += 1
+				humanoid.Jump = true
+				local sideways = root.CFrame.RightVector * (if rng:NextNumber() < 0.5 then -6 else 6)
+				humanoid:MoveTo(root.Position + sideways)
+				task.wait(0.35)
+				if stuck >= 2 then
+					waypoints = plan()
+					index = 2
+				end
+				if stuck >= 4 then
+					local step = if flat.Magnitude > 0.01 then flat.Unit * math.min(5, flat.Magnitude) else Vector3.zero
+					root.CFrame = CFrame.new(root.Position + step + Vector3.new(0, 2, 0)) * root.CFrame.Rotation
+					stuck = 0
+				end
+			else
+				stuck = 0
+			end
+			lastPosition, lastCheck = root.Position, os.clock()
+		end
+		task.wait(0.12)
 	end
 	return false
 end
@@ -162,6 +347,9 @@ local function finish(thief: Thief, outcome: string, by: Player?)
 		thief.Carry = nil
 	end
 
+	if outcome ~= "Cancelled" then
+		say(thief, outcome)
+	end
 	if outcome == "Escaped" and carrying and owner.Parent then
 		local slotData = EconomyService.RemoveSlime(owner, thief.Slot)
 		PlotService.SetCarried(owner, thief.Slot, false)
@@ -188,7 +376,7 @@ local function finish(thief: Thief, outcome: string, by: Player?)
 		PlotService.SetCarried(owner, thief.Slot, false)
 	end
 	if outcome == "Bonked" then
-		local reward = EconomyService.IncomeMinutes(owner, Economy.ThiefRewardMinutes, Economy.ThiefRewardMinimum)
+		local reward = EconomyService.FreeRewardCash(owner, Economy.ThiefRewardMinutes, Economy.ThiefRewardMinimum)
 		local hero = by or owner
 		EconomyService.AddCash(hero, reward, "Reward", "ThiefCaught")
 		NetService.FxTo(hero, "ThiefCaught", { Amount = reward })
@@ -263,6 +451,7 @@ local function visit(owner: Player)
 		Done = false,
 	}
 	thieves[owner] = thief
+	say(thief, "Arrive")
 	NetService.FxTo(owner, "Thief", { Position = root.Position })
 	NetService.Notify(owner, "😈 A THIEF is sneaking to your base! Bonk him or lock it!", "Bad")
 	NetService.FxTo(owner, "Offer", {
@@ -280,7 +469,8 @@ local function visit(owner: Player)
 		finish(thief, "Locked")
 		return
 	end
-	if not walkTo(thief, inside, 10) or not walkTo(thief, grabSpot, 10) then
+	say(thief, "Sneak")
+	if not walkTo(thief, inside, 12) or not walkTo(thief, grabSpot, 12) then
 		if not thief.Done then
 			finish(thief, if PlotService.IsLocked(owner) then "Locked" else "Cancelled")
 		end
@@ -322,14 +512,23 @@ local function visit(owner: Player)
 	thief.Carry = carry
 	PlotService.SetCarried(owner, slot, true)
 	local name = SlimeInfo.DisplayName(slotData.Id, slotData.Mutation, slotData.Tier)
+	say(thief, "Grab")
 	NetService.Notify(owner, "🚨 The thief grabbed your " .. name .. "! BONK HIM!", "Bad")
 	NetService.FxTo(owner, "Thief", { Position = root.Position })
 
 	-- Run for it.
 	humanoid.WalkSpeed = Economy.ThiefCarrySpeed
 	-- (Locking now traps him: see the Locked handler in Init.)
+	task.spawn(function()
+		while not thief.Done do
+			task.wait(Random.new():NextNumber(2.5, 4))
+			if not thief.Done then
+				say(thief, "Run")
+			end
+		end
+	end)
 	for _, point in { inside, gateFront, Vector3.new(gateFront.X, 3, laneZ), edge } do
-		if not walkTo(thief, point, 40) then
+		if not walkTo(thief, point, 40, true) then
 			if not thief.Done then
 				finish(thief, if PlotService.IsLocked(owner) then "Locked" else "Cancelled")
 			end

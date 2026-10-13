@@ -24,6 +24,6 @@ return {
 
 	-- Daily streak rewards, in minutes of income (minimum cash floor applies).
 	-- Day 7 also grants a free Epic slime.
-	DailyIncomeMinutes = { 5, 10, 15, 20, 30, 45, 60 },
-	DailyMinimumCash = { 100, 250, 500, 1000, 2500, 5000, 10000 },
+	DailyIncomeMinutes = { 2, 3, 4, 5, 6, 8, 12 },
+	DailyMinimumCash = { 100, 200, 350, 500, 800, 1200, 2000 },
 }

@@ -19,11 +19,11 @@ type PlayerData = DataTemplate.PlayerData
 -- Playtime gift rewards, matched to Events.GiftMinutes by position.
 type Gift = { Kind: "Cash" | "Double" | "Slime", Minutes: number?, SlimeId: string? }
 local GIFTS: { Gift } = {
-	{ Kind = "Cash", Minutes = 5 },
+	{ Kind = "Cash", Minutes = 2 },
 	{ Kind = "Double", Minutes = 5 },
-	{ Kind = "Cash", Minutes = 10 },
+	{ Kind = "Cash", Minutes = 3 },
 	{ Kind = "Double", Minutes = 10 },
-	{ Kind = "Cash", Minutes = 20 },
+	{ Kind = "Cash", Minutes = 5 },
 	{ Kind = "Slime", SlimeId = "ember" },
 }
 local DAY7_SLIME = "crystal"
@@ -70,7 +70,7 @@ local function claimDaily(player: Player)
 	data.Daily.LastDay = today()
 	data.Daily.Streak = streak
 	local amount =
-		EconomyService.IncomeMinutes(player, Events.DailyIncomeMinutes[streak], Events.DailyMinimumCash[streak])
+		EconomyService.FreeRewardCash(player, Events.DailyIncomeMinutes[streak], Events.DailyMinimumCash[streak])
 	EconomyService.AddCash(player, amount, "Daily", "Day" .. streak)
 	NetService.Notify(player, "📅 Day " .. streak .. " reward: " .. Format.Cash(amount) .. "!", "Money")
 	if streak == 7 then
@@ -98,7 +98,7 @@ local function claimGift(player: Player)
 	end
 	session.GiftsClaimed = index
 	if gift.Kind == "Cash" then
-		local amount = EconomyService.IncomeMinutes(player, gift.Minutes or 5, 250 * index)
+		local amount = EconomyService.FreeRewardCash(player, gift.Minutes or 2, 100 * index)
 		EconomyService.AddCash(player, amount, "Gift", "Gift" .. index)
 		NetService.Notify(player, "🎁 Gift: " .. Format.Cash(amount) .. "!", "Money")
 	elseif gift.Kind == "Double" then
@@ -106,7 +106,7 @@ local function claimGift(player: Player)
 		NetService.Notify(player, "🎁 Gift: 2x cash for " .. (gift.Minutes or 5) .. " minutes!", "Good")
 	elseif gift.Kind == "Slime" and gift.SlimeId then
 		if not EconomyService.AddSlime(player, gift.SlimeId, "", "Gift") then
-			local amount = EconomyService.IncomeMinutes(player, 30, 5000)
+			local amount = EconomyService.FreeRewardCash(player, 8, 2000)
 			EconomyService.AddCash(player, amount, "Gift", "GiftFallback")
 			NetService.Notify(player, "🎁 Your base was full, so you got " .. Format.Cash(amount) .. "!", "Money")
 		else
@@ -146,7 +146,7 @@ local function redeem(player: Player, input: unknown)
 		EconomyService.GiveTemporaryDouble(player, (code.Minutes or 10) * 60)
 		NetService.Notify(player, "🎟️ Code redeemed: 2x cash for " .. (code.Minutes or 10) .. " minutes!", "Good")
 	else
-		local amount = EconomyService.IncomeMinutes(player, code.Minutes or 10, code.Minimum or 500)
+		local amount = EconomyService.FreeRewardCash(player, code.Minutes or 3, code.Minimum or 300)
 		EconomyService.AddCash(player, amount, "Code", key)
 		NetService.Notify(player, "🎟️ Code redeemed: " .. Format.Cash(amount) .. "!", "Money")
 	end

@@ -403,6 +403,13 @@ function EconomyService.IncomeMinutes(player: Player, minutes: number, minimum: 
 	return math.max(minimum, math.floor(EconomyService.IncomePerSecond(player) * minutes * 60))
 end
 
+-- Free rewards (gifts, daily, codes, the thief bounty) are paid from base
+-- income, without 2x/VIP/boost multipliers, so they never outshine what
+-- Robux buys.
+function EconomyService.FreeRewardCash(player: Player, minutes: number, minimum: number): number
+	return math.max(minimum, math.floor(EconomyService.BaseIncome(player) * minutes * 60))
+end
+
 local function refreshFriends()
 	local players = Players:GetPlayers()
 	for _, player in players do

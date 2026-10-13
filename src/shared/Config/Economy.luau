@@ -63,11 +63,11 @@ local Economy = {
 	ThiefMinInterval = 240,
 	ThiefMaxInterval = 420,
 	ThiefMinSlimes = 3, -- only bases with at least this many (he skips the best one)
-	ThiefWalkSpeed = 13,
-	ThiefCarrySpeed = 10, -- players walk 16, so you can always catch him
+	ThiefWalkSpeed = 9, -- sneaking in
+	ThiefCarrySpeed = 14, -- running away; players walk 18, so you can catch him
 	ThiefGrabSeconds = 2,
-	ThiefRewardMinutes = 2, -- bonk reward: this many minutes of the owner's income
-	ThiefRewardMinimum = 250,
+	ThiefRewardMinutes = 1, -- bonk reward: minutes of the owner's base income
+	ThiefRewardMinimum = 150,
 
 	-- Growth: slimes grow while they sit in a base, up to double income
 	-- (and a bigger, juicier target) after GrowSeconds. Stolen slimes keep it.
