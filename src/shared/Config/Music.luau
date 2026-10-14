@@ -1,26 +1,21 @@
 --!strict
--- Background music: licensed tracks from DistroKid's verified Roblox account
--- (public, free to use in any experience). Played client-side, shuffled.
+-- Background music (played client-side). Tracks were made for the game and
+-- normalised to -20 LUFS before upload, so these volumes sit well under the
+-- voices and effects.
 
 return {
-	Volume = 0.28,
+	Volume = 0.32, -- background loop
+	RaidVolume = 0.36, -- the chase track, a touch more present
 	FadeSeconds = 2,
+	-- Plays while a thief raid is on (workspace attribute RaidActive).
+	RaidTrack = 111138172796277, -- Candy Capers Chase
 	-- Seasonal playlists by event id; Default plays when no event has one.
 	Playlists = {
 		Halloween = {
-			111631783838916, -- Spooky cartoon music
-			101206861008794, -- Spooky cartoon music, Pt. 3
-			115585877205328, -- Spooky cartoon music, Pt. 4
-			123383267796300, -- Spooky cartoon music, Pt. 5
-			87537452210084, -- Spooky cartoon music, Pt. 6
-			132339469996629, -- Halloween skeleton dance
-			120032869536494, -- Halloween skeleton dance, Pt. 2
-			74910520938989, -- Spooksville
+			103413214979988, -- Moonlit Pumpkin Parade
 		},
 		Default = {
-			111631783838916,
-			132339469996629,
-			74910520938989,
+			103413214979988,
 		},
 	} :: { [string]: { number } },
 }

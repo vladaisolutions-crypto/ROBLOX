@@ -519,6 +519,7 @@ checkRaidOver = function()
 		return
 	end
 	raidActive = false
+	workspace:SetAttribute("RaidActive", false) -- clients play the chase music while a raid is on
 	nextRaidAt = os.clock() + randomInterval()
 	local caught, escaped = raidStats.Caught, raidStats.Escaped
 	if caught > 0 and escaped == 0 then
@@ -971,6 +972,7 @@ local function startRaid()
 		owners[i], owners[j] = owners[j], owners[i]
 	end
 	raidActive = true
+	workspace:SetAttribute("RaidActive", true) -- clients play the chase music while a raid is on
 	raidPending = 0
 	raidStats = { Caught = 0, Escaped = 0, Stopped = 0 }
 	local budget = Economy.RaidMaxThieves
@@ -985,6 +987,7 @@ local function startRaid()
 	end
 	if sent == 0 then
 		raidActive = false
+		workspace:SetAttribute("RaidActive", false) -- clients play the chase music while a raid is on
 		nextRaidAt = os.clock() + 30 -- nobody has enough slimes yet; check again soon
 		return
 	end
