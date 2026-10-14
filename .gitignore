@@ -7,3 +7,6 @@ sourcemap.json
 # Raw image generations (superseded by the processed files above them)
 assets/store/raw/
 __pycache__/
+
+# One-time secret codes (server-only, never committed)
+src/server/SecretCodes.luau

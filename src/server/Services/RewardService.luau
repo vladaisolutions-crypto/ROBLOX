@@ -13,6 +13,13 @@ local DataService = require(script.Parent.DataService)
 local EconomyService = require(script.Parent.EconomyService)
 local NetService = require(script.Parent.NetService)
 local TelemetryService = require(script.Parent.TelemetryService)
+local PassService = require(script.Parent.PassService)
+
+-- One-time secret codes live in a git-ignored server module (may be absent).
+local secretModule = script.Parent.Parent:FindFirstChild("SecretCodes")
+local SecretCodes: { [string]: { Kind: string } } = if secretModule and secretModule:IsA("ModuleScript")
+	then (require :: any)(secretModule)
+	else {}
 
 type PlayerData = DataTemplate.PlayerData
 
@@ -116,6 +123,35 @@ local function redeem(player: Player, input: unknown)
 		return
 	end
 	local key = string.upper((string.gsub(input, "%s", "")))
+	local secret = SecretCodes[key]
+	if secret then
+		-- Claim it for this account across every server, once.
+		local ok, owner = pcall(function()
+			return game:GetService("DataStoreService"):GetDataStore("SecretCodeClaims"):UpdateAsync(key, function(old)
+				return if old == nil then player.UserId else nil
+			end)
+		end)
+		if not ok then
+			NetService.Notify(player, "Couldn't check that code right now, try again in a minute.", "Bad")
+			return
+		end
+		if owner ~= player.UserId then
+			NetService.Notify(player, "That code has already been used!", "Bad")
+			return
+		end
+		if secret.Kind == "AllPasses" then
+			data.CompPasses = true
+			PassService.GrantAll(player)
+			if not EconomyService.AddSlime(player, "royal", "", "Code") then
+				EconomyService.AddCash(player, 20e6, "Code", "SecretRoyal")
+			end
+			NetService.Notify(player, "👑 VIP code! Every game pass is yours, plus a Royal slime!", "Money")
+		end
+		data.Codes[key] = true
+		DataService.SaveNow(player)
+		EconomyService.PushState(player)
+		return
+	end
 	local code = Codes.ByCode[key]
 	if not code then
 		NetService.Notify(player, "That code doesn't exist!", "Bad")

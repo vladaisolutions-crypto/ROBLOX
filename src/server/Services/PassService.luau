@@ -9,6 +9,8 @@ local Shared = game:GetService("ReplicatedStorage").Shared
 local Monetization = require(Shared.Config.Monetization)
 local Signal = require(Shared.Util.Signal)
 
+local DataService = require(script.Parent.DataService)
+
 -- Set true to test pass perks in Studio without buying them.
 local STUDIO_GRANT_ALL = false
 
@@ -55,7 +57,19 @@ local function load(player: Player)
 	end
 end
 
+-- Every pass, free (a secret code); kept in saved data so it lasts.
+function PassService.GrantAll(player: Player)
+	for _, pass in Monetization.Passes do
+		grant(player, pass.Key)
+	end
+end
+
 function PassService.Init()
+	DataService.ProfileLoaded:Connect(function(player: Player, data: any)
+		if data.CompPasses then
+			PassService.GrantAll(player)
+		end
+	end)
 	Players.PlayerAdded:Connect(load)
 	for _, player in Players:GetPlayers() do
 		load(player)

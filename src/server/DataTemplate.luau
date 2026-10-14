@@ -36,6 +36,7 @@ export type PlayerData = {
 	Funnel: { [string]: boolean }, -- onboarding analytics steps already logged
 	Codes: { [string]: boolean }, -- redeemed codes
 	StarterBought: boolean, -- bought the one-time Starter Pack
+	CompPasses: boolean, -- given every game pass for free (secret code)
 	Quests: { Day: number, List: { { Id: string, Progress: number, Claimed: boolean } } },
 }
 
@@ -65,6 +66,7 @@ function DataTemplate.New(): PlayerData
 		Funnel = {},
 		Codes = {},
 		StarterBought = false,
+		CompPasses = false,
 		Quests = { Day = 0, List = {} },
 	}
 end
