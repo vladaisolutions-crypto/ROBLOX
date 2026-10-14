@@ -13,6 +13,7 @@ local Monetization = require(Shared.Config.Monetization)
 local Format = require(Shared.Util.Format)
 local Remotes = require(Shared.Remotes)
 
+local Music = require(script.Parent.Parent.Music)
 local Store = require(script.Parent.Parent.Store)
 local Kit = require(script.Parent.Kit)
 
@@ -102,6 +103,19 @@ function Hud.Create(screen: ScreenGui, menus: Menus)
 	menuButton("🎟️\nCodes", Color3.fromRGB(255, 150, 60), function()
 		Kit.Toggle(menus.Codes)
 	end)
+	-- Music on/off, small in the bottom-left corner.
+	local musicButton: TextButton
+	musicButton = Kit.Button(
+		screen,
+		"🎵",
+		UDim2.fromOffset(46, 46),
+		UDim2.new(0, 12, 1, -58),
+		Kit.Colors.Purple,
+		function()
+			Music.SetEnabled(not Music.IsEnabled())
+			musicButton.Text = if Music.IsEnabled() then "🎵" else "🔇"
+		end
+	)
 	menuButton("👥\nInvite", Color3.fromRGB(255, 120, 170), function()
 		pcall(function()
 			SocialService:PromptGameInvite(player)
