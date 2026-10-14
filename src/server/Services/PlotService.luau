@@ -316,6 +316,7 @@ doMerge = function(player: Player, slot: number)
 		Special = special,
 		Halloween = EventService.SeasonalActive("Halloween"),
 		Owner = player.UserId,
+		Tier = merged.Tier or 1,
 	})
 	if special or (merged.Tier or 1) >= 3 then
 		NetService.Announce(

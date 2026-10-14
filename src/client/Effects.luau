@@ -27,6 +27,7 @@ local Remotes = require(Shared.Remotes)
 local Monetization = require(Shared.Config.Monetization)
 local Format = require(Shared.Util.Format)
 local Sounds = require(Shared.Config.Sounds).Ids
+local Economy = require(Shared.Config.Economy)
 local BatSwing = require(script.Parent.BatSwing)
 local Store = require(script.Parent.Store)
 
@@ -158,59 +159,347 @@ local function shake(amount: number, seconds: number)
 	end)
 end
 
+-- The merging player's celebration: a big banner with spinning rays, the
+-- income boost, and confetti raining down the screen.
+local function mergeBanner(title: string, subtitle: string, color: Color3)
+	if not screenGui then
+		return
+	end
+	local holder = Instance.new("Frame")
+	holder.Name = "MergeCelebration"
+	holder.BackgroundTransparency = 1
+	holder.Size = UDim2.fromScale(1, 1)
+	holder.ZIndex = 60
+	holder.Parent = screenGui
+
+	-- Spinning light rays behind the title.
+	local rays = Instance.new("Frame")
+	rays.AnchorPoint = Vector2.new(0.5, 0.5)
+	rays.Position = UDim2.fromScale(0.5, 0.36)
+	rays.Size = UDim2.fromOffset(10, 10)
+	rays.BackgroundTransparency = 1
+	rays.ZIndex = 60
+	rays.Parent = holder
+	for i = 1, 12 do
+		local ray = Instance.new("Frame")
+		ray.AnchorPoint = Vector2.new(0.5, 1)
+		ray.Position = UDim2.fromScale(0.5, 0.5)
+		ray.Size = UDim2.fromOffset(46, 420)
+		ray.Rotation = i * 30
+		ray.BorderSizePixel = 0
+		ray.BackgroundColor3 = color:Lerp(Color3.new(1, 1, 1), 0.5)
+		ray.BackgroundTransparency = 0.55
+		ray.ZIndex = 60
+		local fade = Instance.new("UIGradient")
+		fade.Rotation = 90
+		fade.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.7, 0.4),
+			NumberSequenceKeypoint.new(1, 0.2),
+		})
+		fade.Parent = ray
+		ray.Parent = rays
+	end
+	local raysScale = Instance.new("UIScale")
+	raysScale.Scale = 0
+	raysScale.Parent = rays
+	TweenService:Create(raysScale, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
+		:Play()
+	TweenService:Create(rays, TweenInfo.new(3.2, Enum.EasingStyle.Linear), { Rotation = 160 }):Play()
+
+	local function bigText(text: string, y: number, size: number, textColor: Color3, delay: number): TextLabel
+		local label = Instance.new("TextLabel")
+		label.AnchorPoint = Vector2.new(0.5, 0.5)
+		label.Position = UDim2.fromScale(0.5, y)
+		label.Size = UDim2.fromOffset(900, size)
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.FredokaOne
+		label.TextScaled = true
+		label.Text = text
+		label.TextColor3 = textColor
+		label.ZIndex = 62
+		local stroke = Instance.new("UIStroke")
+		stroke.Thickness = 5
+		stroke.Color = Color3.fromRGB(25, 15, 35)
+		stroke.Parent = label
+		local scale = Instance.new("UIScale")
+		scale.Scale = 0
+		scale.Parent = label
+		label.Parent = holder
+		task.delay(delay, function()
+			TweenService
+				:Create(scale, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
+				:Play()
+			-- A little heartbeat pulse while it is up.
+			task.delay(0.5, function()
+				TweenService:Create(
+					scale,
+					TweenInfo.new(0.35, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, 3, true),
+					{ Scale = 1.08 }
+				):Play()
+			end)
+		end)
+		return label
+	end
+	local titleLabel = bigText(title, 0.34, 110, color, 0)
+	local shine = Instance.new("UIGradient")
+	shine.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, color),
+		ColorSequenceKeypoint.new(0.45, color),
+		ColorSequenceKeypoint.new(0.5, Color3.new(1, 1, 1)),
+		ColorSequenceKeypoint.new(0.55, color),
+		ColorSequenceKeypoint.new(1, color),
+	})
+	shine.Offset = Vector2.new(-1, 0)
+	shine.Parent = titleLabel
+	task.delay(0.4, function()
+		TweenService:Create(shine, TweenInfo.new(0.9, Enum.EasingStyle.Quad), { Offset = Vector2.new(1, 0) }):Play()
+	end)
+	bigText(subtitle, 0.47, 54, Color3.fromRGB(140, 255, 140), 0.25)
+
+	-- Confetti raining down the screen.
+	local palette = {
+		color,
+		Color3.fromRGB(255, 220, 60),
+		Color3.fromRGB(255, 90, 160),
+		Color3.fromRGB(90, 200, 255),
+		Color3.fromRGB(140, 255, 120),
+	}
+	for _ = 1, 70 do
+		local bit = Instance.new("Frame")
+		bit.BorderSizePixel = 0
+		bit.Size = UDim2.fromOffset(math.random(8, 16), math.random(12, 22))
+		bit.Position = UDim2.new(math.random(), 0, -0.05 - math.random() * 0.3, 0)
+		bit.BackgroundColor3 = palette[math.random(1, #palette)]
+		bit.Rotation = math.random(0, 360)
+		bit.ZIndex = 61
+		bit.Parent = holder
+		local fall = math.random(18, 32) / 10
+		TweenService:Create(bit, TweenInfo.new(fall, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			Position = UDim2.new(bit.Position.X.Scale + (math.random() - 0.5) * 0.25, 0, 1.1, 0),
+			Rotation = bit.Rotation + math.random(-540, 540),
+		}):Play()
+	end
+
+	task.delay(3, function()
+		for _, item in holder:GetDescendants() do
+			if item:IsA("TextLabel") then
+				TweenService:Create(item, TweenInfo.new(0.5), { TextTransparency = 1 }):Play()
+			elseif item:IsA("UIStroke") then
+				TweenService:Create(item, TweenInfo.new(0.5), { Transparency = 1 }):Play()
+			elseif item:IsA("Frame") and item ~= holder and item ~= rays then
+				TweenService:Create(item, TweenInfo.new(0.5), { BackgroundTransparency = 1 }):Play()
+			end
+		end
+		task.wait(0.6)
+		holder:Destroy()
+	end)
+end
+
+-- The slime that was just made, rendered by the server at `at`.
+local function slimeNear(at: Vector3): Model?
+	local best, bestDistance = nil :: Model?, 6
+	for _, model in CollectionService:GetTagged("Slime") do
+		if model:IsA("Model") and model:GetAttribute("Carried") ~= true then
+			local d = (model:GetPivot().Position - at).Magnitude
+			if d < bestDistance then
+				best, bestDistance = model, d
+			end
+		end
+	end
+	return best
+end
+
+-- Merge: the three slimes' energy spirals up into a growing core (the camera
+-- leans in and trembles for the merger), then SLAM: triple burst, double
+-- shockwave, confetti fountain, a light blast, and the new slime jelly-pops
+-- out. The merger gets a big banner on top.
+local CHARGE = 1.3
 local function onMerge(data: { [string]: any })
 	local to = data.To
 	if typeof(to) ~= "Vector3" then
 		return
 	end
+	if (to - camera.CFrame.Position).Magnitude > 220 then
+		return
+	end
 	local color: Color3 = if typeof(data.Color) == "Color3" then data.Color else Color3.new(1, 1, 1)
 	local halloween = data.Halloween == true
 	local orbColor = if halloween then Color3.fromRGB(120, 255, 90) else color
+	local mine = data.Owner == player.UserId
+	local tier = if type(data.Tier) == "number" then data.Tier else 2
+	local core = to + Vector3.new(0, 7, 0)
+
+	-- Rising charge-up sound.
+	local charge = Instance.new("Sound")
+	charge.SoundId = Sounds.Whoosh
+	charge.Looped = true
+	charge.Volume = 0.5
+	charge.PlaybackSpeed = 0.5
+	charge.RollOffMaxDistance = 160
+	local chargeAt = Instance.new("Attachment")
+	chargeAt.WorldPosition = core
+	chargeAt.Parent = workspace.Terrain
+	charge.Parent = chargeAt
+	charge:Play()
+	TweenService:Create(charge, TweenInfo.new(CHARGE, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+		PlaybackSpeed = 1.8,
+		Volume = 0.9,
+	}):Play()
+	Debris:AddItem(chargeAt, CHARGE + 0.2)
+
+	-- The growing core of light.
+	local glow = anchoredPart(Vector3.one * 0.4, orbColor)
+	glow.Shape = Enum.PartType.Ball
+	glow.Position = core
+	local glowLight = Instance.new("PointLight")
+	glowLight.Color = orbColor
+	glowLight.Range = 14
+	glowLight.Brightness = 1
+	glowLight.Parent = glow
+	TweenService:Create(glow, TweenInfo.new(CHARGE, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+		Size = Vector3.one * 3.4,
+	}):Play()
+	TweenService:Create(glowLight, TweenInfo.new(CHARGE), { Brightness = 6, Range = 26 }):Play()
+
+	-- Orbs spiral up from the three slimes into the core.
+	local orbs: { { Part: Part, From: Vector3, Angle: number } } = {}
 	local from = if type(data.From) == "table" then data.From else {}
-	for _, position in from do
+	for i, position in from do
 		if typeof(position) == "Vector3" then
-			local orb = anchoredPart(Vector3.one * 1.4, orbColor)
+			local orb = anchoredPart(Vector3.one * 1.6, orbColor)
 			orb.Shape = Enum.PartType.Ball
 			orb.Position = position
-			local light = Instance.new("PointLight")
-			light.Color = orbColor
-			light.Range = 10
-			light.Brightness = 2
-			light.Parent = orb
-			local trail = Instance.new("Trail")
 			local a0, a1 = Instance.new("Attachment"), Instance.new("Attachment")
-			a0.Position, a1.Position = Vector3.new(0, 0.5, 0), Vector3.new(0, -0.5, 0)
+			a0.Position, a1.Position = Vector3.new(0, 0.6, 0), Vector3.new(0, -0.6, 0)
 			a0.Parent, a1.Parent = orb, orb
+			local trail = Instance.new("Trail")
 			trail.Attachment0, trail.Attachment1 = a0, a1
-			trail.Color = ColorSequence.new(orbColor)
+			trail.Color = ColorSequence.new(orbColor, Color3.new(1, 1, 1))
 			trail.LightEmission = 1
-			trail.Lifetime = 0.25
+			trail.Lifetime = 0.35
 			trail.Parent = orb
-			local mid = (position + to) / 2 + Vector3.new(0, 6, 0)
-			-- Arc over: up to the midpoint, then down into the cauldron spot.
-			TweenService:Create(orb, TweenInfo.new(0.25, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
-				Position = mid,
-			}):Play()
-			task.delay(0.25, function()
-				TweenService:Create(orb, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-					Position = to,
-					Size = Vector3.one * 0.4,
-				}):Play()
-			end)
-			Debris:AddItem(orb, 0.5)
+			local offset = position - core
+			table.insert(orbs, { Part = orb, From = position, Angle = math.atan2(offset.Z, offset.X) + i })
 		end
 	end
-	task.delay(0.48, function()
-		play(Sounds.Merge, to, 1)
-		burst(to, orbColor, 70, 30, 1.4)
+	local fov0 = camera.FieldOfView
+	local start = os.clock()
+	local connection
+	connection = RunService.RenderStepped:Connect(function()
+		local t = math.min((os.clock() - start) / CHARGE, 1)
+		local eased = t * t
+		for _, orb in orbs do
+			local flat = Vector3.new(orb.From.X - core.X, 0, orb.From.Z - core.Z)
+			local radius = flat.Magnitude * (1 - eased)
+			local angle = orb.Angle + eased * math.pi * 5
+			local height = (orb.From.Y - core.Y) * (1 - eased) + math.sin(t * math.pi) * 3
+			orb.Part.Position = core + Vector3.new(math.cos(angle) * radius, height, math.sin(angle) * radius)
+		end
+		if mine then
+			camera.FieldOfView = fov0 - 12 * eased
+			local k = 0.012 * eased
+			camera.CFrame *= CFrame.Angles((math.random() - 0.5) * k, (math.random() - 0.5) * k, 0)
+		end
+		if t >= 1 then
+			connection:Disconnect()
+		end
+	end)
+
+	task.delay(CHARGE, function()
+		for _, orb in orbs do
+			orb.Part:Destroy()
+		end
+		-- SLAM: the core drops into the pedestal and blows.
+		TweenService:Create(glow, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			Position = to,
+			Size = Vector3.one * 6,
+		}):Play()
+		task.wait(0.12)
+		glow:Destroy()
+		play(Sounds.Merge, to, 1.2)
+		play(Sounds.Rare, to, 0.8, 1.1)
+		if mine then
+			play(Sounds.Fanfare, nil, 0.8)
+		end
+		burst(to, orbColor, 90, 40, 1.6)
+		burst(to, Color3.new(1, 1, 1), 40, 26, 1)
+		burst(to, Color3.fromRGB(255, 215, 60), 50, 34, 0.8, "rbxasset://textures/particles/sparkles_main.dds")
 		if halloween then
 			burst(to, Color3.fromRGB(60, 200, 60), 30, 8, 3.5, "rbxasset://textures/particles/smoke_main.dds")
 		end
-		shockwave(to - Vector3.new(0, 1.5, 0), orbColor, 16)
-		local name = if type(data.Name) == "string" then data.Name else "MERGED!"
-		popText(to + Vector3.new(0, 4, 0), string.upper(name) .. "!", color, if data.Special then 1.4 else 1.1)
-		if data.Owner == player.UserId then
-			shake(0.03, 0.35)
+		shockwave(to - Vector3.new(0, 1.5, 0), orbColor, 18)
+		task.delay(0.15, function()
+			shockwave(to - Vector3.new(0, 1.5, 0), Color3.new(1, 1, 1), 30)
+		end)
+		-- Confetti fountain.
+		local confetti =
+			{ orbColor, Color3.fromRGB(255, 220, 60), Color3.fromRGB(255, 90, 160), Color3.fromRGB(90, 200, 255) }
+		for i = 1, 40 do
+			local bit = Instance.new("Part")
+			bit.Size = Vector3.new(0.35, 0.05, 0.5)
+			bit.Color = confetti[(i % #confetti) + 1]
+			bit.Material = Enum.Material.SmoothPlastic
+			bit.CanCollide = false
+			bit.CanQuery = false
+			bit.CanTouch = false
+			bit.CFrame = CFrame.new(to + Vector3.new(0, 1, 0))
+			bit.Parent = folder
+			bit.AssemblyLinearVelocity =
+				Vector3.new((math.random() - 0.5) * 30, math.random(30, 50), (math.random() - 0.5) * 30)
+			bit.AssemblyAngularVelocity = Vector3.new(math.random(-20, 20), math.random(-20, 20), math.random(-20, 20))
+			Debris:AddItem(bit, 3)
+		end
+		-- A blast of light that lights up the base (a light, not a screen flash).
+		local blast = Instance.new("Attachment")
+		blast.WorldPosition = to + Vector3.new(0, 3, 0)
+		blast.Parent = workspace.Terrain
+		local light = Instance.new("PointLight")
+		light.Color = orbColor
+		light.Range = 40
+		light.Brightness = 8
+		light.Parent = blast
+		TweenService:Create(light, TweenInfo.new(1.2), { Brightness = 0 }):Play()
+		Debris:AddItem(blast, 1.3)
+
+		-- The new slime jelly-pops out: tiny, overshoot, settle.
+		local slime = slimeNear(to)
+		if slime then
+			local base = slime:GetScale()
+			local value = Instance.new("NumberValue")
+			value.Value = 0.25
+			value.Changed:Connect(function(k: number)
+				if slime.Parent then
+					slime:ScaleTo(base * k)
+				end
+			end)
+			TweenService:Create(value, TweenInfo.new(0.7, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), {
+				Value = 1,
+			}):Play()
+			Debris:AddItem(value, 1)
+		end
+
+		local name = if type(data.Name) == "string" then data.Name else "MERGED"
+		popText(to + Vector3.new(0, 5, 0), string.upper(name) .. "!", color, if data.Special then 1.5 else 1.25, 7)
+		if mine then
+			shake(0.05, 0.5)
+			-- Camera springs back past normal, then settles.
+			TweenService:Create(camera, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+				FieldOfView = fov0 + 6,
+			}):Play()
+			task.delay(0.25, function()
+				TweenService:Create(camera, TweenInfo.new(0.6, Enum.EasingStyle.Sine), { FieldOfView = fov0 }):Play()
+			end)
+			local mergeTier = Economy.MergeTiers[tier]
+			local boost = if mergeTier then mergeTier.Income else 1
+			local title = if data.Special
+				then string.upper(name) .. "!"
+				elseif tier >= 3 then "COLOSSAL SLIME!"
+				else "GIANT SLIME!"
+			local subtitle = if data.Special
+				then "✨ A brand new slime! ✨"
+				else string.format("x%s INCOME! 💰", (string.format("%.1f", boost):gsub("%.0$", "")))
+			mergeBanner(title, subtitle, color)
 		end
 	end)
 end
