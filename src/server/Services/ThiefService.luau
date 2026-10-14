@@ -741,7 +741,7 @@ local function visit(owner: Player, plot: WorldService.Plot, slot: number, lane:
 				local side = if away.Magnitude > 0.1 then away.Unit:Cross(Vector3.yAxis) else root.CFrame.RightVector
 				thief.DodgeDir = side * (if rng:NextNumber() < 0.5 then -1 else 1)
 				thief.DodgeUntil = now + 0.6
-				humanoid.WalkSpeed = Economy.ThiefCarrySpeed * thief.Speed * 1.15
+				humanoid.WalkSpeed = Economy.ThiefCarrySpeed * thief.Speed * 1.12
 				task.delay(1.5, function()
 					if not thief.Done then
 						humanoid.WalkSpeed = Economy.ThiefCarrySpeed * thief.Speed
