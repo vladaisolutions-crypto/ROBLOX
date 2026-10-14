@@ -331,6 +331,7 @@ function Panels.Daily(screen: ScreenGui): Kit.Panel
 	layout.Parent = row
 
 	local tiles: { Frame } = {}
+	local rewardLabels: { TextLabel } = {}
 	for day = 1, 7 do
 		local tile = Kit.Frame(row, UDim2.fromScale(0.133, 1), nil, Kit.Colors.PanelLight)
 		Kit.Stroke(tile, 2)
@@ -341,6 +342,16 @@ function Panels.Daily(screen: ScreenGui): Kit.Panel
 		local label = Kit.Label(tile, reward, UDim2.fromScale(0.9, 0.65), UDim2.fromScale(0.05, 0.3), Kit.Colors.Gold)
 		label.TextWrapped = true
 		table.insert(tiles, tile)
+		table.insert(rewardLabels, label)
+	end
+	-- Exact cash per day, from base income (free rewards skip multipliers).
+	local function rewardText(day: number): string
+		local base = Store.Get("Income", 0) / math.max(Store.Get("Multiplier", 1), 1e-6)
+		local cash = math.max(Events.DailyMinimumCash[day], math.floor(base * Events.DailyIncomeMinutes[day] * 60))
+		return if day == 7 then "💎
+Epic Slime
++ " .. Format.Cash(cash) else "💰
+" .. Format.Cash(cash)
 	end
 	local status = Kit.Label(panel.Body, "", UDim2.fromScale(1, 0.1), UDim2.fromScale(0, 0.64), Kit.Colors.Muted)
 	local button = Kit.Button(
@@ -357,6 +368,9 @@ function Panels.Daily(screen: ScreenGui): Kit.Panel
 	local function refresh()
 		local streak = Store.Get("DailyStreak", 1)
 		local canClaim = Store.Get("DailyCanClaim", false)
+		for day, label in rewardLabels do
+			label.Text = rewardText(day)
+		end
 		for day, tile in tiles do
 			local claimedToday = not canClaim and day <= streak
 			tile.BackgroundColor3 = if canClaim and day == streak
