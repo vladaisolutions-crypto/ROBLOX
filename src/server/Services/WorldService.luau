@@ -113,6 +113,22 @@ local function setupLighting()
 	color.Saturation = 0.2
 	color.Contrast = 0.05
 	color.Parent = Lighting
+
+	local rays = Instance.new("SunRaysEffect")
+	rays.Intensity = 0.06
+	rays.Spread = 0.7
+	rays.Parent = Lighting
+
+	-- Soft shadows and PBR reflections so the slimes look glossy.
+	Lighting.ShadowSoftness = 0.3
+	Lighting.EnvironmentDiffuseScale = 1
+	Lighting.EnvironmentSpecularScale = 1
+
+	local clouds = Instance.new("Clouds")
+	clouds.Cover = 0.55
+	clouds.Density = 0.6
+	clouds.Color = Color3.fromRGB(255, 250, 255)
+	clouds.Parent = workspace.Terrain
 end
 
 local function buildBelt()

@@ -8,7 +8,6 @@
 --   Grow   a puff and a boing when a slime grows a size.
 --   Cash   a floating "+$" and coins when you collect.
 --   Rare   confetti, a fanfare and the rarity name over a rare slime.
---   Jelly  every slime wobbles; a carried (stolen) one wriggles frantically.
 --   Haunted Rain  during Halloween, Slime Rain turns the sky dark and ghosts
 --          drift down around you.
 --   Bats   during Halloween, a flock of bats circles over the map.
@@ -862,29 +861,6 @@ local function onOffer(data: { [string]: any })
 	end)
 end
 
--- Jelly wobble: squash and stretch each slime body's mesh (visual only).
-local function jelly()
-	local t0 = os.clock()
-	RunService.RenderStepped:Connect(function()
-		local t = os.clock() - t0
-		local eye = camera.CFrame.Position
-		for _, body in CollectionService:GetTagged("SlimeBody") do
-			if body:IsA("BasePart") and (body.Position - eye).Magnitude < 130 then
-				local mesh = body:FindFirstChildOfClass("SpecialMesh")
-				local model = body.Parent
-				if mesh and model then
-					local seed = (body.Position.X * 0.37 + body.Position.Z * 0.21) % 6.28
-					local carried = model:GetAttribute("Carried") == true
-					local speed = if carried then 14 else 3.2
-					local amount = if carried then 0.13 else 0.055
-					local a = math.sin(t * speed + seed) * amount
-					mesh.Scale = Vector3.new(1 + a, 1 - a * 1.4, 1 + a)
-				end
-			end
-		end
-	end)
-end
-
 -- Haunted Rain (Slime Rain during Halloween): darker sky, drifting ghosts.
 local function hauntedRain()
 	local emitterPart = Instance.new("Part")
@@ -1088,7 +1064,6 @@ function Effects.Start(screen: ScreenGui)
 			onBonk(data)
 		end
 	end)
-	jelly()
 	hauntedRain()
 	bats()
 end

@@ -424,6 +424,11 @@ local function halloween()
 		bloom.Intensity = 1
 		bloom.Threshold = 1.2
 	end
+	local clouds = workspace.Terrain:FindFirstChildOfClass("Clouds")
+	if clouds then
+		clouds.Color = Color3.fromRGB(190, 140, 220)
+		clouds.Cover = 0.65
+	end
 	local ground = workspace:FindFirstChild("Baseplate")
 	if ground and ground:IsA("BasePart") then
 		ground.Color = Color3.fromRGB(70, 88, 58)

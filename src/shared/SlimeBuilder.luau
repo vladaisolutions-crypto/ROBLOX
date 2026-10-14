@@ -318,14 +318,29 @@ function SlimeBuilder.Build(slimeId: string, mutationId: string?, options: Build
 
 	local body = addPart(model, root, "Body", bodySize, CFrame.new(), color, material, "Ball")
 	body.Transparency = transparency
+	body.CastShadow = true
+	if material == Enum.Material.SmoothPlastic then
+		body.Reflectance = 0.12 -- wet jelly sheen under Future lighting
+	end
 	CollectionService:AddTag(body, "SlimeBody")
+	-- The body hangs off the root by a Weld the client animates (hop, squash,
+	-- wiggle); everything else is welded to the body so it rides along.
+	local bodyWeld = body:FindFirstChildOfClass("WeldConstraint")
+	if bodyWeld then
+		bodyWeld:Destroy()
+	end
+	local jelly = Instance.new("Weld")
+	jelly.Name = "Jelly"
+	jelly.Part0 = root
+	jelly.Part1 = body
+	jelly.Parent = body
 
 	-- Face (front is -Z)
 	local white, black = Color3.new(1, 1, 1), Color3.fromRGB(20, 20, 25)
 	for _, side in { -1, 1 } do
 		addPart(
 			model,
-			root,
+			body,
 			"Eye",
 			Vector3.one * 0.6 * s,
 			CFrame.new(side * 0.55 * s, 0.25 * s, -1.22 * s),
@@ -335,7 +350,7 @@ function SlimeBuilder.Build(slimeId: string, mutationId: string?, options: Build
 		)
 		addPart(
 			model,
-			root,
+			body,
 			"Pupil",
 			Vector3.one * 0.32 * s,
 			CFrame.new(side * 0.55 * s, 0.22 * s, -1.47 * s),
@@ -344,10 +359,10 @@ function SlimeBuilder.Build(slimeId: string, mutationId: string?, options: Build
 			"Ball"
 		)
 	end
-	addPart(model, root, "Mouth", Vector3.new(0.55, 0.12, 0.12) * s, CFrame.new(0, -0.25 * s, -1.44 * s), black)
+	addPart(model, body, "Mouth", Vector3.new(0.55, 0.12, 0.12) * s, CFrame.new(0, -0.25 * s, -1.44 * s), black)
 	local shine = addPart(
 		model,
-		root,
+		body,
 		"Shine",
 		Vector3.one * 0.45 * s,
 		CFrame.new(-0.75 * s, 0.6 * s, -0.95 * s),
@@ -358,7 +373,7 @@ function SlimeBuilder.Build(slimeId: string, mutationId: string?, options: Build
 	shine.Transparency = 0.35
 
 	if def.Hat then
-		addHat(model, root, def.Hat, s, bodySize.Y / 2)
+		addHat(model, body, def.Hat, s, bodySize.Y / 2)
 	end
 
 	-- Effects

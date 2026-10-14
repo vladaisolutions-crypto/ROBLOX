@@ -68,34 +68,6 @@ local function watchPrompts()
 	end)
 end
 
--- Jelly squish on nearby slimes, and colour cycling for Rainbow mutations.
-local function animateSlimes()
-	local t0 = os.clock()
-	RunService.RenderStepped:Connect(function()
-		local camera = workspace.CurrentCamera
-		if not camera then
-			return
-		end
-		local t = os.clock() - t0
-		local camPos = camera.CFrame.Position
-		for _, body in CollectionService:GetTagged("SlimeBody") do
-			if body:IsA("BasePart") and (body.Position - camPos).Magnitude < 90 then
-				local mesh = body:FindFirstChildOfClass("SpecialMesh")
-				if mesh then
-					local phase = t * 4 + body.Position.X * 0.3 + body.Position.Z * 0.2
-					local squish = math.sin(phase) * 0.06
-					mesh.Scale = Vector3.new(1 + squish, 1 - squish, 1 + squish)
-				end
-			end
-		end
-		for _, body in CollectionService:GetTagged("RainbowSlime") do
-			if body:IsA("BasePart") then
-				body.Color = Color3.fromHSV((t * 0.25 + body.Position.X * 0.01) % 1, 0.75, 1)
-			end
-		end
-	end)
-end
-
 -- The server tells us when we get bonked; we own our character's physics.
 local knockToken = 0
 local function listenKnockback()
@@ -223,7 +195,6 @@ end
 
 function Controllers.Start(tutorialLabel: TextLabel)
 	watchPrompts()
-	animateSlimes()
 	listenKnockback()
 	tutorial(tutorialLabel)
 end
