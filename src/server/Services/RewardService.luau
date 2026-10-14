@@ -18,14 +18,7 @@ type PlayerData = DataTemplate.PlayerData
 
 -- Playtime gift rewards, matched to Events.GiftMinutes by position.
 type Gift = { Kind: "Cash" | "Double" | "Slime", Minutes: number?, SlimeId: string? }
-local GIFTS: { Gift } = {
-	{ Kind = "Cash", Minutes = 2 },
-	{ Kind = "Double", Minutes = 5 },
-	{ Kind = "Cash", Minutes = 3 },
-	{ Kind = "Double", Minutes = 10 },
-	{ Kind = "Cash", Minutes = 5 },
-	{ Kind = "Slime", SlimeId = "ember" },
-}
+local GIFTS: { Gift } = Events.Gifts :: any
 local DAY7_SLIME = "crystal"
 
 local RewardService = {}
@@ -98,7 +91,7 @@ local function claimGift(player: Player)
 	end
 	session.GiftsClaimed = index
 	if gift.Kind == "Cash" then
-		local amount = EconomyService.FreeRewardCash(player, gift.Minutes or 2, 100 * index)
+		local amount = EconomyService.FreeRewardCash(player, gift.Minutes or 2, (gift :: any).Minimum or 100)
 		EconomyService.AddCash(player, amount, "Gift", "Gift" .. index)
 		NetService.Notify(player, "🎁 Gift: " .. Format.Cash(amount) .. "!", "Money")
 	elseif gift.Kind == "Double" then

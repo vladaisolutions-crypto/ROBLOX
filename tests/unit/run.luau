@@ -195,7 +195,8 @@ test("monetization config is consistent", function()
 end)
 
 test("events and codes", function()
-	eq(#Events.GiftMinutes, 6, "gift count (must match RewardService GIFTS)")
+	eq(#Events.GiftMinutes, 6, "gift times")
+	eq(#Events.Gifts, 6, "a reward for every gift time")
 	eq(#Events.DailyIncomeMinutes, 7)
 	eq(#Events.DailyMinimumCash, 7)
 	for _, code in Codes.List do
@@ -315,6 +316,47 @@ test("balance: time to first rebirth is reasonable", function()
 	local minutes = t / 60
 	print(string.format("      balance: first rebirth after ~%.0f min of solo play", minutes))
 	assert(minutes > 15 and minutes < 180, "first rebirth at " .. minutes .. " min is outside 15-180")
+end)
+
+test("paid cash always beats free rewards, and bigger packs are better value", function()
+	local function cash(perSecond: number, minutes: number, minimum: number): number
+		return math.max(minimum, math.floor(perSecond * minutes * 60))
+	end
+	local products = Monetization.ProductByKey
+	for _, perSecond in { 0, 2, 20, 200, 2000, 20000, 200000 } do
+		-- Best single free payout at this income (free rewards use base income).
+		local free = 0
+		for day, minutes in Events.DailyIncomeMinutes do
+			free = math.max(free, cash(perSecond, minutes, Events.DailyMinimumCash[day]))
+		end
+		for _, gift in Events.Gifts do
+			if gift.Kind == "Cash" then
+				free = math.max(free, cash(perSecond, gift.Minutes or 0, gift.Minimum or 0))
+			end
+		end
+		for _, code in Codes.List do
+			if code.Kind == "Cash" then
+				free = math.max(free, cash(perSecond, code.Minutes or 0, code.Minimum or 0))
+			end
+		end
+		free = math.max(free, math.floor(perSecond * Economy.OfflineCapSeconds * Economy.OfflineEfficiency))
+		-- Paid packs at worst case (no multipliers).
+		local function paid(key: string): number
+			local p = products[key]
+			return cash(perSecond, p.CashMinutes or 0, p.CashMinimum or 0)
+		end
+		local small, medium, large, starter =
+			paid("CashSmall"), paid("CashMedium"), paid("CashLarge"), paid("StarterPack")
+		local label = " at $" .. perSecond .. "/s"
+		assert(small >= free * 1.5, "Cash Bag " .. small .. " vs best free " .. free .. label)
+		assert(starter >= free * 1.5, "Starter Pack " .. starter .. " vs best free " .. free .. label)
+		assert(starter > small, "Starter Pack beats the Cash Bag" .. label)
+		local function perRobux(key: string, amount: number): number
+			return amount / products[key].SuggestedPrice
+		end
+		assert(perRobux("CashMedium", medium) >= perRobux("CashSmall", small), "Crate better value than Bag" .. label)
+		assert(perRobux("CashLarge", large) >= perRobux("CashMedium", medium), "Vault better value than Crate" .. label)
+	end
 end)
 
 print(string.format("\n%d passed, %d failed", passed, failed))

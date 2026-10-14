@@ -65,7 +65,7 @@ end
 
 function Panels.Shop(screen: ScreenGui): Kit.Panel
 	local panel = Kit.Panel(screen, "🛒 Shop", Kit.Colors.Gold)
-	local scroll = scrollGrid(panel.Body, UDim2.new(0.32, -6, 0, 150))
+	local scroll = scrollGrid(panel.Body, UDim2.new(0.32, -6, 0, 178))
 	local passButtons: { [string]: TextButton } = {}
 
 	local function card(order: number, icon: string, name: string, description: string, color: Color3): Frame
@@ -79,6 +79,7 @@ function Panels.Shop(screen: ScreenGui): Kit.Panel
 		return frame
 	end
 
+	local cashLabels: { { Label: TextLabel, Product: Monetization.Product } } = {}
 	local order = 0
 	for _, pass in Monetization.Passes do
 		order += 1
@@ -153,9 +154,24 @@ function Panels.Shop(screen: ScreenGui): Kit.Panel
 					button.Text = "R$ " .. robuxPrice(product.Id, false, product.SuggestedPrice)
 				end)
 			end
+			-- Show the exact cash it gives right now, not "X minutes of income".
+			if product.CashMinutes and (product.Kind == "Cash" or product.Kind == "Bundle") then
+				local amount =
+					Kit.Label(frame, "", UDim2.new(0.92, 0, 0, 26), UDim2.new(0.04, 0, 1, -78), Kit.Colors.Gold)
+				table.insert(cashLabels, { Label = amount, Product = product })
+			end
 		end
 	end
 
+	local function refreshCash()
+		local income = Store.Get("Income", 0)
+		for _, entry in cashLabels do
+			local p = entry.Product
+			local cash = math.max(p.CashMinimum or 0, math.floor(income * (p.CashMinutes or 0) * 60))
+			entry.Label.Text = "💰 +" .. Format.Cash(cash)
+		end
+	end
+	refreshCash()
 	refreshBundles()
 	Store.Changed:Connect(function(section: string)
 		if section == "Events" or section == "State" then
@@ -164,6 +180,7 @@ function Panels.Shop(screen: ScreenGui): Kit.Panel
 		if section ~= "State" then
 			return
 		end
+		refreshCash()
 		for key, button in passButtons do
 			if Store.HasPass(key) then
 				button.Text = "Owned ✓"

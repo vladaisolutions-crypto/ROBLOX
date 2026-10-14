@@ -19,8 +19,17 @@ return {
 	RainSpawnSpeedup = 2,
 	RainLuck = 3,
 
-	-- Playtime gifts: claimable after this many minutes in a session.
+	-- Playtime gifts: claimable after this many minutes in a session, and
+	-- what each gives (Cash: minutes of base income, with a floor).
 	GiftMinutes = { 3, 8, 15, 25, 40, 60 },
+	Gifts = {
+		{ Kind = "Cash", Minutes = 2, Minimum = 100 },
+		{ Kind = "Double", Minutes = 5 },
+		{ Kind = "Cash", Minutes = 3, Minimum = 300 },
+		{ Kind = "Double", Minutes = 10 },
+		{ Kind = "Cash", Minutes = 5, Minimum = 500 },
+		{ Kind = "Slime", SlimeId = "ember" },
+	} :: { { Kind: string, Minutes: number?, Minimum: number?, SlimeId: string? } },
 
 	-- Daily streak rewards, in minutes of income (minimum cash floor applies).
 	-- Day 7 also grants a free Epic slime.
