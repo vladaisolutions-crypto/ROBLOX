@@ -25,6 +25,7 @@ export type PlayerData = {
 	TutorialStep: number,
 	Stats: {
 		Merges: number,
+		ThievesCaught: number,
 		Steals: number,
 		StolenFrom: number,
 		SlimesBought: number,
@@ -35,6 +36,7 @@ export type PlayerData = {
 	Funnel: { [string]: boolean }, -- onboarding analytics steps already logged
 	Codes: { [string]: boolean }, -- redeemed codes
 	StarterBought: boolean, -- bought the one-time Starter Pack
+	Quests: { Day: number, List: { { Id: string, Progress: number, Claimed: boolean } } },
 }
 
 local DataTemplate = {}
@@ -50,11 +52,20 @@ function DataTemplate.New(): PlayerData
 		Daily = { LastDay = 0, Streak = 0 },
 		LastOnline = 0,
 		TutorialStep = 1,
-		Stats = { Merges = 0, Steals = 0, StolenFrom = 0, SlimesBought = 0, PlaySeconds = 0, RobuxSpent = 0 },
+		Stats = {
+			Merges = 0,
+			ThievesCaught = 0,
+			Steals = 0,
+			StolenFrom = 0,
+			SlimesBought = 0,
+			PlaySeconds = 0,
+			RobuxSpent = 0,
+		},
 		Receipts = {},
 		Funnel = {},
 		Codes = {},
 		StarterBought = false,
+		Quests = { Day = 0, List = {} },
 	}
 end
 

@@ -381,6 +381,70 @@ function Panels.Daily(screen: ScreenGui): Kit.Panel
 	return panel
 end
 
+function Panels.Quests(screen: ScreenGui): Kit.Panel
+	local panel = Kit.Panel(screen, "🎯 Daily Quests", Color3.fromRGB(255, 170, 60))
+	type Row = { Frame: Frame, Text: TextLabel, Bar: Frame, Fill: Frame, Count: TextLabel, Button: TextButton }
+	local rows: { Row } = {}
+	for i = 1, 3 do
+		local frame =
+			Kit.Frame(panel.Body, UDim2.fromScale(1, 0.26), UDim2.fromScale(0, (i - 1) * 0.29), Kit.Colors.PanelLight)
+		Kit.Stroke(frame, 2)
+		local text = Kit.Label(frame, "", UDim2.fromScale(0.62, 0.4), UDim2.fromScale(0.03, 0.08))
+		text.TextXAlignment = Enum.TextXAlignment.Left
+		local bar =
+			Kit.Frame(frame, UDim2.fromScale(0.62, 0.22), UDim2.fromScale(0.03, 0.6), Color3.fromRGB(30, 30, 40))
+		Kit.Corner(bar, 8)
+		local fill = Kit.Frame(bar, UDim2.fromScale(0, 1), nil, Color3.fromRGB(255, 170, 60))
+		Kit.Corner(fill, 8)
+		local count = Kit.Label(bar, "", UDim2.fromScale(1, 1), nil)
+		local button = Kit.Button(
+			frame,
+			"",
+			UDim2.fromScale(0.3, 0.7),
+			UDim2.fromScale(0.68, 0.15),
+			Kit.Colors.Green,
+			function()
+				Store.Action("ClaimQuest", i)
+			end
+		)
+		rows[i] = { Frame = frame, Text = text, Bar = bar, Fill = fill, Count = count, Button = button }
+	end
+	local footer = Kit.Label(panel.Body, "", UDim2.fromScale(1, 0.1), UDim2.fromScale(0, 0.89), Kit.Colors.Muted)
+
+	local function refresh()
+		local quests = Store.Get("Quests", {})
+		for i, row in rows do
+			local quest = quests[i]
+			row.Frame.Visible = quest ~= nil
+			if quest then
+				local done = quest.Progress >= quest.Goal
+				row.Text.Text = quest.Text
+				row.Fill.Size = UDim2.fromScale(math.clamp(quest.Progress / quest.Goal, 0, 1), 1)
+				row.Count.Text = quest.Progress .. " / " .. quest.Goal
+				if quest.Claimed then
+					row.Button.Text = "Claimed ✓"
+					row.Button.BackgroundColor3 = Kit.Colors.Grey
+				elseif done then
+					row.Button.Text = "CLAIM\n+" .. Format.Cash(quest.Reward)
+					row.Button.BackgroundColor3 = Kit.Colors.Green
+				else
+					row.Button.Text = "💰 +" .. Format.Cash(quest.Reward)
+					row.Button.BackgroundColor3 = Kit.Colors.Grey
+				end
+			end
+		end
+		footer.Text = "New quests in " .. Format.Time(Store.Get("QuestsResetAt", 0) - workspace:GetServerTimeNow())
+	end
+	Store.Changed:Connect(function(section: string)
+		if section == "State" and panel.IsOpen() then
+			refresh()
+		end
+	end)
+	panel.Frame:GetPropertyChangedSignal("Visible"):Connect(refresh)
+	refresh()
+	return panel
+end
+
 function Panels.Codes(screen: ScreenGui): Kit.Panel
 	local panel = Kit.Panel(screen, "🎟️ Codes", Color3.fromRGB(255, 120, 170))
 	Kit.Label(

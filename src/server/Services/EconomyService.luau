@@ -27,6 +27,7 @@ EconomyService.SlotsChanged = Signal.new() -- (player)
 EconomyService.SlimeAdded = Signal.new() -- (player, slotData, source)
 EconomyService.Collected = Signal.new() -- (player, amount)
 EconomyService.Rebirthed = Signal.new() -- (player, rebirths)
+EconomyService.Merged = Signal.new() -- (player, slotData)
 
 type Runtime = {
 	FriendsInServer: number,
@@ -393,6 +394,7 @@ function EconomyService.Merge(player: Player, slot: number, skip: { [number]: bo
 	target.Age = age / Economy.MergeCount -- the three slimes' average growth
 	discover(player, data, target.Id, target.Mutation)
 	TelemetryService.Custom(player, "Merge", target.Tier or 1)
+	EconomyService.Merged:Fire(player, target)
 	EconomyService.SlotsChanged:Fire(player)
 	EconomyService.PushState(player)
 	return consumed, special

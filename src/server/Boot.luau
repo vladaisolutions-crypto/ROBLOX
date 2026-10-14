@@ -22,6 +22,8 @@ local ORDER = {
 	"ConveyorService",
 	"StealService",
 	"ThiefService",
+	"QuestService",
+	"LeaderboardService",
 	"CharacterService",
 	"MonetizationService",
 	"RewardService",

@@ -25,7 +25,7 @@ export type Product = {
 	Description: string,
 	SuggestedPrice: number,
 	Icon: string,
-	Kind: string, -- "Cash" | "Luck" | "InstantLock" | "BeltSlime" | "Bundle"
+	Kind: string, -- "Cash" | "Luck" | "InstantLock" | "BeltSlime" | "Bundle" | "RaidShield"
 	CashMinutes: number?, -- Cash: minutes of the buyer's current income
 	CashMinimum: number?, -- Cash: floor so new players still get value
 	Rarity: string?, -- BeltSlime: rarity tier this product buys
@@ -34,6 +34,7 @@ export type Product = {
 	SlimeId: string?,
 	DoubleMinutes: number?,
 	OneTime: boolean?, -- offered once per account (the Starter Pack)
+	ShieldMinutes: number?, -- RaidShield: thieves skip your base this long
 	Event: string?, -- only offered while this event runs (it really ends)
 }
 
@@ -94,6 +95,14 @@ local Passes: { Pass } = {
 		SuggestedPrice = 79,
 		Icon = "🏏",
 	},
+	{
+		Key = "GuardSlime",
+		Id = 2036348370,
+		Name = "Guard Slime",
+		Description = "A guard slime at your gate bonks thieves for you.",
+		SuggestedPrice = 199,
+		Icon = "🛡️",
+	},
 }
 
 local Products: { Product } = {
@@ -110,6 +119,34 @@ local Products: { Product } = {
 		SlimeId = "crystal",
 		DoubleMinutes = 30,
 		OneTime = true,
+		Shop = true,
+	},
+	{
+		Key = "EpicPack",
+		Id = 3718549159,
+		Name = "Epic Pack",
+		Description = "An Epic Lava slime, 40 min of income (at least 25K) and 30 min of 2x cash.",
+		SuggestedPrice = 129,
+		Icon = "🔥",
+		Kind = "Bundle",
+		CashMinutes = 40,
+		CashMinimum = 25000,
+		SlimeId = "lava",
+		DoubleMinutes = 30,
+		Shop = true,
+	},
+	{
+		Key = "RoyalPack",
+		Id = 3718549176,
+		Name = "Royal Pack",
+		Description = "EXCLUSIVE: the golden Royal slime (Robux only), 2 h of income (at least 300K) and 2 h of 2x cash.",
+		SuggestedPrice = 799,
+		Icon = "👑",
+		Kind = "Bundle",
+		CashMinutes = 120,
+		CashMinimum = 300000,
+		SlimeId = "royal",
+		DoubleMinutes = 120,
 		Shop = true,
 	},
 	{
@@ -159,6 +196,29 @@ local Products: { Product } = {
 		Kind = "Cash",
 		CashMinutes = 480,
 		CashMinimum = 200000,
+		Shop = true,
+	},
+	{
+		Key = "CashMega",
+		Id = 3718549183,
+		Name = "Cash Mountain",
+		Description = "24 hours of your income.",
+		SuggestedPrice = 999,
+		Icon = "🏔️",
+		Kind = "Cash",
+		CashMinutes = 1440,
+		CashMinimum = 600000,
+		Shop = true,
+	},
+	{
+		Key = "RaidShield",
+		Id = 3718549197,
+		Name = "Raid Shield",
+		Description = "Thieves skip your base for 15 minutes.",
+		SuggestedPrice = 49,
+		Icon = "🛡️",
+		Kind = "RaidShield",
+		ShieldMinutes = 15,
 		Shop = true,
 	},
 	{

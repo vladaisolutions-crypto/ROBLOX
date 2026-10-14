@@ -8,13 +8,15 @@ Read `docs/STRATEGY.md` for the why, and `docs/SETUP.md` for how it gets to Robl
 - `src/shared/` → ReplicatedStorage.Shared (configs, utils, SlimeBuilder, Remotes)
   - `Config/*.luau` holds **all tuning**: slimes, rarities, mutations, economy, prices/IDs, events, codes, map layout. Balance changes go here, not in services.
 - `src/server/` → ServerScriptService.Server. `init.server.luau` requires `Services/*` in dependency order, calls `Init()` on all, then `Start()`.
-  - Dependency order (no cycles): Net, Data, Telemetry, Pass, World, Event, Decor, Economy, Plot, Conveyor, Steal, Thief, Character, Monetization, Reward, Tutorial. Lower services expose `Signal`s; higher ones subscribe.
+  - Dependency order (no cycles): Net, Data, Telemetry, Pass, World, Event, Decor, Economy, Plot, Conveyor, Steal, Thief, Quest, Leaderboard, Character, Monetization, Reward, Tutorial. Lower services expose `Signal`s; higher ones subscribe.
   - `DataService`: session-locked DataStore; `DataTemplate.luau` defines saved data, and new fields auto-fill on load.
   - All cash and slot changes go through `EconomyService`, which logs analytics.
   - Receipts: `MonetizationService` only returns PurchaseGranted after the grant is saved.
 - `src/client/` → StarterPlayerScripts.Client: `Store` (merged server state), `UI/` (Kit, Hud, Panels), `Controllers.luau`, `Effects.luau` (juice from the `Fx` remote: merge, grow, cash, rare, pass offers; jelly wobble; Haunted Rain).
 - Slimes grow (`SlotData.Age`) and merge (`SlotData.Tier`; `EconomyService.Merge`, recipes via `Slimes.MergeInto`). Income/size always go through `SlimeInfo` with tier and age.
 - `ThiefService`: server-wide thief raids every few minutes, a gang per base (tuning in `Economy.Thief*`/`Raid*`); bat hits reach thieves through `StealService.Swung`, thieves shove players via `StealService.Knock`.
+- `QuestService`: 3 daily quests per player from `Config/Quests.luau`. `LeaderboardService`: two OrderedDataStore boards (cash earned, thieves caught) beside the belt.
+- Free rewards (daily, gifts, codes, quests, raid victory, offline) pay from base income; `tests/unit` fails if any paid cash pack stops beating them by 1.5x or bigger packs stop being better value per Robux.
 - Avatars use AnimationConstraint joints (not Motor6D); joint code (swing, ragdoll) must handle both.
 - Rojo ignores `Position` on parts in `default.project.json`; place parts in code (see `WorldService.Init`).
 - The map is generated at runtime by `WorldService`. Slime models are built from parts by `SlimeBuilder`, so there are no asset IDs.

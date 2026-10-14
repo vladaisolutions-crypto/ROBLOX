@@ -18,6 +18,7 @@ local EventService = require(script.Parent.EventService)
 local NetService = require(script.Parent.NetService)
 local PlotService = require(script.Parent.PlotService)
 local TelemetryService = require(script.Parent.TelemetryService)
+local ThiefService = require(script.Parent.ThiefService)
 
 local MonetizationService = {}
 
@@ -33,6 +34,10 @@ local function grant(player: Player, product: Monetization.Product): boolean
 		return true
 	elseif product.Kind == "InstantLock" then
 		PlotService.Lock(player, true)
+		return true
+	elseif product.Kind == "RaidShield" then
+		ThiefService.Shield(player, (product.ShieldMinutes or 15) * 60)
+		NetService.Notify(player, "🛡️ Raid Shield up! Thieves will skip your base.", "Good")
 		return true
 	elseif product.Kind == "BeltSlime" and product.Rarity then
 		return ConveyorService.GrantBeltProduct(player, product.Rarity) ~= nil

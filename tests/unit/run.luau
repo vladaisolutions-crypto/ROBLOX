@@ -10,6 +10,7 @@ local Economy = Loader.get("src/shared/Config/Economy")
 local Monetization = Loader.get("src/shared/Config/Monetization")
 local Events = Loader.get("src/shared/Config/Events")
 local Codes = Loader.get("src/shared/Config/Codes")
+local Quests = Loader.get("src/shared/Config/Quests")
 local World = Loader.get("src/shared/Config/World")
 local Format = Loader.get("src/shared/Util/Format")
 local Weighted = Loader.get("src/shared/Util/Weighted")
@@ -339,6 +340,10 @@ test("paid cash always beats free rewards, and bigger packs are better value", f
 				free = math.max(free, cash(perSecond, code.Minutes or 0, code.Minimum or 0))
 			end
 		end
+		for _, quest in Quests.Pool do
+			free = math.max(free, cash(perSecond, quest.RewardMinutes, quest.RewardMinimum))
+		end
+		free = math.max(free, cash(perSecond, Economy.RaidVictoryMinutes, Economy.RaidVictoryMinimum))
 		free = math.max(free, math.floor(perSecond * Economy.OfflineCapSeconds * Economy.OfflineEfficiency))
 		-- Paid packs at worst case (no multipliers).
 		local function paid(key: string): number
@@ -356,6 +361,10 @@ test("paid cash always beats free rewards, and bigger packs are better value", f
 		end
 		assert(perRobux("CashMedium", medium) >= perRobux("CashSmall", small), "Crate better value than Bag" .. label)
 		assert(perRobux("CashLarge", large) >= perRobux("CashMedium", medium), "Vault better value than Crate" .. label)
+		local mega = paid("CashMega")
+		assert(perRobux("CashMega", mega) >= perRobux("CashLarge", large), "Mountain better value than Vault" .. label)
+		assert(paid("EpicPack") >= free * 1.5, "Epic Pack beats free" .. label)
+		assert(paid("RoyalPack") >= paid("EpicPack"), "Royal Pack beats Epic Pack" .. label)
 	end
 end)
 

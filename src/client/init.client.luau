@@ -39,6 +39,7 @@ local menus: Hud.Menus = {
 	Rebirth = Panels.Rebirth(screen),
 	Daily = Panels.Daily(screen),
 	Codes = Panels.Codes(screen),
+	Quests = Panels.Quests(screen),
 }
 Hud.Create(screen, menus)
 

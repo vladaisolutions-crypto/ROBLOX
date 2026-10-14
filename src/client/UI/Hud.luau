@@ -30,6 +30,7 @@ export type Menus = {
 	Rebirth: Kit.Panel,
 	Daily: Kit.Panel,
 	Codes: Kit.Panel,
+	Quests: Kit.Panel,
 }
 
 function Hud.Create(screen: ScreenGui, menus: Menus)
@@ -79,6 +80,24 @@ function Hud.Create(screen: ScreenGui, menus: Menus)
 	end)
 	local dailyButton = menuButton("📅\nDaily", Kit.Colors.Green, function()
 		Kit.Toggle(menus.Daily)
+	end)
+	local questButton = menuButton("🎯\nQuests", Color3.fromRGB(255, 170, 60), function()
+		Kit.Toggle(menus.Quests)
+	end)
+	local questDot = Kit.Frame(questButton, UDim2.fromScale(0.28, 0.28), UDim2.fromScale(0.8, -0.1), Kit.Colors.Red)
+	Kit.Corner(questDot, 100)
+	questDot.Visible = false
+	Store.Changed:Connect(function(section: string)
+		if section ~= "State" then
+			return
+		end
+		local ready = false
+		for _, quest in Store.Get("Quests", {}) do
+			if quest.Progress >= quest.Goal and not quest.Claimed then
+				ready = true
+			end
+		end
+		questDot.Visible = ready
 	end)
 	menuButton("🎟️\nCodes", Color3.fromRGB(255, 150, 60), function()
 		Kit.Toggle(menus.Codes)

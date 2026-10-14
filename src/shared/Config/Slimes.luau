@@ -20,6 +20,7 @@ export type SlimeDef = {
 	Event: string?, -- only spawns while this event is active
 	MergeOnly: boolean?, -- never on the belt: only made by merging
 	MergeInto: string?, -- merging three of these makes this slime instead of a Giant
+	RobuxOnly: boolean?, -- never on the belt: only from its Robux pack
 }
 
 local K, M, B = 1e3, 1e6, 1e9
@@ -369,6 +370,20 @@ local Slimes: { SlimeDef } = {
 		Glow = true,
 		Hat = "WitchHat",
 		Event = "Halloween",
+	},
+	-- Robux-only: the Royal Pack's exclusive slime.
+	{
+		Id = "royal",
+		Name = "Royal",
+		Rarity = "Mythic",
+		Price = 20 * M,
+		Income = 150 * K,
+		Color = Color3.fromRGB(255, 200, 40),
+		Size = 1.8,
+		Material = Enum.Material.Foil,
+		Glow = true,
+		Hat = "Crown",
+		RobuxOnly = true,
 	},
 	-- Merge-only Halloween slimes (three Pumpkins / three Ghosts in the cauldron).
 	{

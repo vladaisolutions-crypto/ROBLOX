@@ -71,7 +71,7 @@ end
 local function rollSlime(rarity: Rarities.Rarity): Slimes.SlimeDef
 	local pool = {}
 	for _, def in Slimes.List do
-		if def.Rarity == rarity.Name and eligible(def.Event) and not def.MergeOnly then
+		if def.Rarity == rarity.Name and eligible(def.Event) and not def.MergeOnly and not def.RobuxOnly then
 			table.insert(pool, def)
 		end
 	end
@@ -377,7 +377,7 @@ function ConveyorService.GrantBeltProduct(player: Player, rarityName: string): s
 		end
 		local fallback = Slimes.List[1]
 		for _, def in Slimes.List do
-			if def.Rarity == rarityName and def.Event == nil and not def.MergeOnly then
+			if def.Rarity == rarityName and def.Event == nil and not def.MergeOnly and not def.RobuxOnly then
 				fallback = def
 				break
 			end

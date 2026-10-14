@@ -61,12 +61,15 @@ local Shared = game:GetService("ReplicatedStorage").Shared
 local Economy = require(Shared.Config.Economy)
 local World = require(Shared.Config.World)
 local Format = require(Shared.Util.Format)
+local Signal = require(Shared.Util.Signal)
 local SlimeBuilder = require(Shared.SlimeBuilder)
 local SlimeInfo = require(Shared.SlimeInfo)
 local Sounds = require(Shared.Config.Sounds).Ids
 
 local EconomyService = require(script.Parent.EconomyService)
+local DataService = require(script.Parent.DataService)
 local NetService = require(script.Parent.NetService)
+local PassService = require(script.Parent.PassService)
 local PlotService = require(script.Parent.PlotService)
 local StealService = require(script.Parent.StealService)
 local TelemetryService = require(script.Parent.TelemetryService)
@@ -86,6 +89,17 @@ type Thief = {
 }
 
 local ThiefService = {}
+
+ThiefService.Bonked = Signal.new() -- (hero: Player) a thief was bonked by this player (or their guard)
+
+-- Raid Shield purchases: thieves skip these bases until the time runs out.
+local shieldUntil: { [Player]: number } = {}
+function ThiefService.Shield(player: Player, seconds: number)
+	shieldUntil[player] = math.max(shieldUntil[player] or 0, os.clock()) + seconds
+end
+local function shielded(player: Player): boolean
+	return os.clock() < (shieldUntil[player] or 0)
+end
 
 -- The thieves raiding each player's base right now (a raid is a small gang).
 local thieves: { [Player]: { Thief } } = {}
@@ -482,6 +496,13 @@ checkRaidOver = function()
 	raidActive = false
 	nextRaidAt = os.clock() + randomInterval()
 	local caught, escaped = raidStats.Caught, raidStats.Escaped
+	if caught > 0 and escaped == 0 then
+		for _, player in Players:GetPlayers() do
+			local amount = EconomyService.FreeRewardCash(player, Economy.RaidVictoryMinutes, Economy.RaidVictoryMinimum)
+			EconomyService.AddCash(player, amount, "Reward", "RaidVictory")
+			NetService.Notify(player, "🏆 Perfect defense! Nobody got away. +" .. Format.Cash(amount), "Money")
+		end
+	end
 	NetService.Announce(
 		string.format(
 			"🛡️ Raid over! %d thie%s caught, %d got away.",
@@ -554,6 +575,11 @@ local function finish(thief: Thief, outcome: string, by: Player?)
 	if outcome == "Bonked" then
 		local reward = EconomyService.FreeRewardCash(owner, Economy.ThiefRewardMinutes, Economy.ThiefRewardMinimum)
 		local hero = by or owner
+		local heroData = DataService.Get(hero)
+		if heroData then
+			heroData.Stats.ThievesCaught += 1
+		end
+		ThiefService.Bonked:Fire(hero)
 		EconomyService.AddCash(hero, reward, "Reward", "ThiefCaught")
 		NetService.FxTo(hero, "ThiefCaught", { Amount = reward })
 		NetService.Notify(hero, "🦸 You bonked the thief! +" .. Format.Cash(reward), "Money")
@@ -730,7 +756,7 @@ end
 -- Sends a gang of up to `size` thieves at one base. Returns how many.
 local function raid(owner: Player, size: number): number
 	local plot = PlotService.GetPlot(owner)
-	if not plot then
+	if not plot or shielded(owner) then
 		return 0
 	end
 	local taken: { [number]: boolean } = {}
@@ -862,52 +888,137 @@ local function shoveCheck()
 end
 
 -- Bat hit on an NPC thief: ragdoll him away and end the visit.
-local function onSwing(attacker: Player, attackerRoot: BasePart, range: number, force: number)
+local function allThieves(): { Thief }
 	local everyone: { Thief } = {}
 	for _, gang in thieves do
 		for _, thief in gang do
 			table.insert(everyone, thief)
 		end
 	end
-	for _, thief in everyone do
+	return everyone
+end
+
+-- Bonk one thief from `from`: ragdoll him away and end his visit.
+local function bonkThief(thief: Thief, attacker: Player, from: Vector3, fallback: Vector3, force: number)
+	local offset = thief.Root.Position - from
+	local direction = Vector3.new(offset.X, 0, offset.Z)
+	direction = if direction.Magnitude > 0.01 then direction.Unit else fallback
+	NetService.Fx("Bonk", {
+		Position = thief.Root.Position + Vector3.new(0, 2, 0),
+		Attacker = attacker.UserId,
+		Dropped = thief.Carry ~= nil,
+		Golden = false,
+		Stun = Economy.BonkStunSeconds,
+	})
+	local billboard = thief.Model:FindFirstChildWhichIsA("BillboardGui", true)
+	if billboard then
+		billboard:Destroy()
+	end
+	finish(thief, "Bonked", attacker)
+	-- Ragdoll: switch off the animated joints, launch every part.
+	thief.Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+	for _, joint in thief.Model:GetDescendants() do
+		if joint:IsA("AnimationConstraint") and joint.Name ~= "Root" then
+			joint.Enabled = false
+		elseif joint:IsA("Motor6D") and joint.Part0 ~= thief.Root then
+			joint.Enabled = false
+		end
+	end
+	local launch = direction * force * 1.2 + Vector3.new(0, force * Economy.BonkLift, 0)
+	local axis = direction:Cross(Vector3.yAxis)
+	task.spawn(function()
+		RunService.Heartbeat:Wait()
+		for _, part in thief.Model:GetDescendants() do
+			if part:IsA("BasePart") then
+				part.CanCollide = part ~= thief.Root
+				part.AssemblyLinearVelocity = launch
+				part.AssemblyAngularVelocity = -axis * 12
+			end
+		end
+	end)
+end
+
+-- Bat hit: every thief in reach in front of the swinger gets bonked.
+local function onSwing(attacker: Player, attackerRoot: BasePart, range: number, force: number)
+	for _, thief in allThieves() do
 		if not thief.Done and thief.Model.Parent then
 			local offset = thief.Root.Position - attackerRoot.Position
 			local distance = offset.Magnitude
 			local inFront = distance < 3 or attackerRoot.CFrame.LookVector:Dot(offset.Unit) > 0.2
 			if distance <= range and inFront then
-				local direction = Vector3.new(offset.X, 0, offset.Z)
-				direction = if direction.Magnitude > 0.01 then direction.Unit else attackerRoot.CFrame.LookVector
-				NetService.Fx("Bonk", {
-					Position = thief.Root.Position + Vector3.new(0, 2, 0),
-					Attacker = attacker.UserId,
-					Dropped = thief.Carry ~= nil,
-					Golden = false,
-					Stun = Economy.BonkStunSeconds,
-				})
-				local billboard = thief.Model:FindFirstChildWhichIsA("BillboardGui", true)
-				if billboard then
-					billboard:Destroy()
-				end
-				finish(thief, "Bonked", attacker)
-				-- Ragdoll: switch off the animated joints, launch every part.
-				thief.Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
-				for _, joint in thief.Model:GetDescendants() do
-					if joint:IsA("AnimationConstraint") and joint.Name ~= "Root" then
-						joint.Enabled = false
-					elseif joint:IsA("Motor6D") and joint.Part0 ~= thief.Root then
-						joint.Enabled = false
+				bonkThief(thief, attacker, attackerRoot.Position, attackerRoot.CFrame.LookVector, force)
+			end
+		end
+	end
+end
+
+-- Guard Slime pass: a guard at the owner's gate bonks thieves that come close.
+local guards: { [Player]: Model } = {}
+local function guardFor(owner: Player): Model?
+	local plot = PlotService.GetPlot(owner)
+	if not plot or not PassService.Has(owner, "GuardSlime") then
+		local old = guards[owner]
+		if old then
+			old:Destroy()
+			guards[owner] = nil
+		end
+		return nil
+	end
+	local guard = guards[owner]
+	if guard and guard.Parent then
+		return guard
+	end
+	local model = SlimeBuilder.Build("thunder", "", {})
+	model.Name = "GuardSlime"
+	for _, gui in model:GetDescendants() do
+		if gui:IsA("BillboardGui") then
+			gui:Destroy()
+		end
+	end
+	local at =
+		plot.CFrame:PointToWorldSpace(Vector3.new(-World.PlotWidth / 2 + 6, World.FloorY, World.PlotDepth / 2 - 4))
+	model:PivotTo(
+		CFrame.lookAt(at, at + plot.CFrame.LookVector * -1) + Vector3.new(0, SlimeBuilder.HalfHeight("thunder"), 0)
+	)
+	local root = model.PrimaryPart
+	if root then
+		local label = Instance.new("BillboardGui")
+		label.Size = UDim2.fromOffset(140, 30)
+		label.StudsOffsetWorldSpace = Vector3.new(0, 3.5, 0)
+		label.MaxDistance = 80
+		label.Parent = root
+		local text = Instance.new("TextLabel")
+		text.BackgroundTransparency = 1
+		text.Size = UDim2.fromScale(1, 1)
+		text.Font = Enum.Font.FredokaOne
+		text.TextScaled = true
+		text.TextColor3 = Color3.fromRGB(120, 200, 255)
+		text.TextStrokeTransparency = 0
+		text.Text = "🛡️ Guard"
+		text.Parent = label
+	end
+	model.Parent = plot.Model
+	guards[owner] = model
+	return model
+end
+
+local function guardCheck()
+	for _, owner in Players:GetPlayers() do
+		local guard = guardFor(owner)
+		local root = guard and guard.PrimaryPart
+		if root then
+			local nearest: Thief? = nil
+			local best = Economy.GuardRange
+			for _, thief in allThieves() do
+				if not thief.Done and thief.Model.Parent then
+					local d = (thief.Root.Position - root.Position).Magnitude
+					if d < best then
+						nearest, best = thief, d
 					end
 				end
-				local launch = direction * force * 1.2 + Vector3.new(0, force * Economy.BonkLift, 0)
-				local axis = direction:Cross(Vector3.yAxis)
-				RunService.Heartbeat:Wait()
-				for _, part in thief.Model:GetDescendants() do
-					if part:IsA("BasePart") then
-						part.CanCollide = part ~= thief.Root
-						part.AssemblyLinearVelocity = launch
-						part.AssemblyAngularVelocity = -axis * 12
-					end
-				end
+			end
+			if nearest then
+				bonkThief(nearest, owner, root.Position, root.CFrame.LookVector, Economy.BonkForce)
 			end
 		end
 	end
@@ -932,6 +1043,12 @@ function ThiefService.Init()
 			finish(thief, "Cancelled")
 		end
 		thieves[player] = nil
+		shieldUntil[player] = nil
+		local guard = guards[player]
+		if guard then
+			guard:Destroy()
+			guards[player] = nil
+		end
 		task.defer(checkRaidOver)
 	end)
 end
@@ -949,6 +1066,12 @@ function ThiefService.Start()
 		while true do
 			task.wait(0.25)
 			shoveCheck()
+		end
+	end)
+	task.spawn(function()
+		while true do
+			task.wait(Economy.GuardInterval)
+			guardCheck()
 		end
 	end)
 end
