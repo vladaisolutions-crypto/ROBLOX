@@ -23,21 +23,36 @@ local ANIMATIONS: { [string]: string } = {
 -- What he says (speech bubble over his head).
 local LINES: { [string]: { { Text: string, Sound: string } } } = {
 	Arrive = {
-		{ Text = "Heh heh heh... 😏", Sound = "ThiefArrive1" },
+		{ Text = "Heh heh heh... time to go shopping 😏", Sound = "ThiefArrive1" },
 		{ Text = "Ooh, what a nice base!", Sound = "ThiefArrive2" },
+		{ Text = "Psst... this way. Nobody's looking.", Sound = "ThiefArrive3" },
 	},
 	Sneak = {
 		{ Text = "Tiptoe, tiptoe... 🤫", Sound = "ThiefSneak1" },
 		{ Text = "Nobody's home... right?", Sound = "ThiefSneak2" },
 	},
+	Scout = {
+		{ Text = "Let me check the coast is clear... 👀", Sound = "ThiefScout1" },
+		{ Text = "Hmm... which one should I take?", Sound = "ThiefScout2" },
+	},
 	Grab = {
 		{ Text = "YOINK! 😈", Sound = "ThiefGrab1" },
 		{ Text = "Shiny! Thanks! ✨", Sound = "ThiefGrab2" },
+		{ Text = "Got one! Got one!", Sound = "ThiefGrab3" },
 	},
 	Run = {
 		{ Text = "Can't catch me! 😜", Sound = "ThiefRun1" },
 		{ Text = "Too slow!", Sound = "ThiefRun2" },
 		{ Text = "Nyeh nyeh! 😝", Sound = "ThiefRun3" },
+		{ Text = "Byeee! 👋", Sound = "ThiefRun4" },
+	},
+	Spotted = {
+		{ Text = "Uh oh, they saw me! 😱", Sound = "ThiefSpotted1" },
+		{ Text = "Run for it!", Sound = "ThiefSpotted2" },
+	},
+	Chased = {
+		{ Text = "Leave me alone! 😤", Sound = "ThiefChased1" },
+		{ Text = "This slime is mine now!", Sound = "ThiefChased2" },
 	},
 	Locked = {
 		{ Text = "Aww, it's locked! 😤", Sound = "ThiefLocked1" },
@@ -49,11 +64,11 @@ local LINES: { [string]: { { Text: string, Sound: string } } } = {
 	},
 	Escaped = {
 		{ Text = "Hehe, see ya! 💨", Sound = "ThiefEscaped1" },
+		{ Text = "Too easy! 😎", Sound = "ThiefEscaped2" },
 	},
 	Shove = {
-		{ Text = "Back off! 😠", Sound = "" },
-		{ Text = "Outta my way!", Sound = "" },
-		{ Text = "Shoo! 👋", Sound = "" },
+		{ Text = "Back off! 😠", Sound = "ThiefShove1" },
+		{ Text = "Outta my way!", Sound = "ThiefShove2" },
 	},
 }
 
@@ -85,6 +100,11 @@ type Thief = {
 	Bubble: TextLabel?,
 	Speed: number, -- this thief's speed multiplier
 	LastShove: number,
+	Flee: boolean, -- spotted before the grab and decided to bail
+	Spotted: boolean,
+	LastChased: number,
+	DodgeUntil: number,
+	DodgeDir: Vector3,
 }
 
 local ThiefService = {}
@@ -427,6 +447,9 @@ local function walkTo(thief: Thief, target: Vector3, timeout: number, hops: bool
 	local lastPosition, lastCheck, stuck = root.Position, os.clock(), 0
 	local nextHop = os.clock() + rng:NextNumber(1.5, 3)
 	while not thief.Done and os.clock() - started < timeout do
+		if thief.Flee and not hops then
+			return false -- he panicked: the caller runs him off
+		end
 		local flat = Vector3.new(target.X - root.Position.X, 0, target.Z - root.Position.Z)
 		if flat.Magnitude < 2.5 then
 			return true
@@ -442,6 +465,9 @@ local function walkTo(thief: Thief, target: Vector3, timeout: number, hops: bool
 					humanoid.Jump = true
 				end
 			end
+		end
+		if os.clock() < thief.DodgeUntil then
+			goal = root.Position + thief.DodgeDir * 6 + (goal - root.Position).Unit * 2
 		end
 		humanoid:MoveTo(goal)
 		-- A cheeky hop now and then while running away.
@@ -634,10 +660,14 @@ local function visit(owner: Player, plot: WorldService.Plot, slot: number, lane:
 	local function randomEdge(): Vector3
 		local halfX, halfZ = World.MapSizeX / 2 - 12, World.MapSizeZ / 2 - 12
 		local roll = rng:NextNumber()
-		if roll < 0.35 then
-			-- An end of the map, at a random depth on this side.
-			local endSign = if rng:NextNumber() < 0.6 then math.sign(cf.Position.X) else -math.sign(cf.Position.X)
-			return Vector3.new(endSign * halfX, 3, rowSign * rng:NextNumber(10, halfZ))
+		if roll < 0.3 then
+			-- Either end of the map, at any depth on either side.
+			local endSign = if rng:NextNumber() < 0.5 then 1 else -1
+			local sideSign = if rng:NextNumber() < 0.75 then rowSign else -rowSign
+			return Vector3.new(endSign * halfX, 3, sideSign * rng:NextNumber(10, halfZ))
+		elseif roll < 0.5 then
+			-- The far side: across the belt, from behind the other row of bases.
+			return Vector3.new(rng:NextNumber(-halfX, halfX), 3, -rowSign * halfZ)
 		end
 		-- The back edge behind this row of bases, anywhere along it.
 		return Vector3.new(rng:NextNumber(-halfX, halfX), 3, rowSign * halfZ)
@@ -661,6 +691,11 @@ local function visit(owner: Player, plot: WorldService.Plot, slot: number, lane:
 		Done = false,
 		Speed = speed,
 		LastShove = 0,
+		Flee = false,
+		Spotted = false,
+		LastChased = 0,
+		DodgeUntil = 0,
+		DodgeDir = Vector3.zero,
 	}
 	local gang = thieves[owner]
 	if not gang then
@@ -670,28 +705,132 @@ local function visit(owner: Player, plot: WorldService.Plot, slot: number, lane:
 	table.insert(gang, thief)
 	say(thief, "Arrive")
 
+	-- Eyes and ears: react to players coming close.
+	task.spawn(function()
+		while not thief.Done and thief.Model.Parent do
+			task.wait(0.4)
+			local nearest, nearestRoot = math.huge, nil :: BasePart?
+			for _, player in Players:GetPlayers() do
+				local character = player.Character
+				local humanoidOf = character and character:FindFirstChildOfClass("Humanoid")
+				local pr = character and character:FindFirstChild("HumanoidRootPart")
+				if humanoidOf and humanoidOf.Health > 0 and pr and pr:IsA("BasePart") then
+					local d = (pr.Position - root.Position).Magnitude
+					if d < nearest then
+						nearest, nearestRoot = d, pr
+					end
+				end
+			end
+			local now = os.clock()
+			if not thief.Carry and not thief.Spotted and nearest < 16 then
+				-- Spotted before the grab: some bail, the brave ones rush it.
+				thief.Spotted = true
+				say(thief, "Spotted")
+				if rng:NextNumber() < 0.45 then
+					thief.Flee = true
+				else
+					humanoid.WalkSpeed = Economy.ThiefWalkSpeed * thief.Speed * 1.25
+				end
+			elseif thief.Carry and nearestRoot and nearest < 14 and now - thief.LastChased > 4 then
+				-- Chased with the slime: shout, sprint and juke sideways.
+				thief.LastChased = now
+				say(thief, "Chased")
+				local away =
+					Vector3.new(root.Position.X - nearestRoot.Position.X, 0, root.Position.Z - nearestRoot.Position.Z)
+				local side = if away.Magnitude > 0.1 then away.Unit:Cross(Vector3.yAxis) else root.CFrame.RightVector
+				thief.DodgeDir = side * (if rng:NextNumber() < 0.5 then -1 else 1)
+				thief.DodgeUntil = now + 0.6
+				humanoid.WalkSpeed = Economy.ThiefCarrySpeed * thief.Speed * 1.15
+				task.delay(1.5, function()
+					if not thief.Done then
+						humanoid.WalkSpeed = Economy.ThiefCarrySpeed * thief.Speed
+					end
+				end)
+			end
+		end
+	end)
+
+	-- Bail out empty-handed: back out of the base and off the map.
+	local function flee()
+		thief.Flee = false
+		humanoid.WalkSpeed = Economy.ThiefCarrySpeed * thief.Speed
+		if cf:PointToObjectSpace(root.Position).Z < D / 2 then
+			walkTo(thief, gateFront, 15, true)
+		end
+		if not thief.Done then
+			walkTo(thief, escape, 40, true)
+		end
+		if not thief.Done then
+			finish(thief, "Fled")
+		end
+	end
+
 	-- To the gate along the lane, then the gate itself.
 	if not walkTo(thief, Vector3.new(gateFront.X, 3, laneZ), 40) or not walkTo(thief, gateFront, 15) then
-		finish(thief, "Cancelled")
+		if thief.Flee then
+			flee()
+		elseif not thief.Done then
+			finish(thief, "Cancelled")
+		end
 		return
 	end
 	if PlotService.IsLocked(owner) then
 		finish(thief, "Locked")
 		return
 	end
+	-- Stop and scout before going in: look left, look right.
+	humanoid:MoveTo(root.Position)
+	say(thief, "Scout")
+	for _, turn in { 50, -100, 50 } do
+		task.wait(rng:NextNumber(0.35, 0.6))
+		if thief.Done or thief.Flee then
+			break
+		end
+		model:PivotTo(model:GetPivot() * CFrame.Angles(0, math.rad(turn), 0))
+	end
+	if thief.Flee then
+		flee()
+		return
+	end
 	say(thief, "Sneak")
 	if not walkTo(thief, inside, 12) or not walkTo(thief, grabSpot, 12) then
-		if not thief.Done then
+		if thief.Flee then
+			flee()
+		elseif not thief.Done then
 			finish(thief, if PlotService.IsLocked(owner) then "Locked" else "Cancelled")
 		end
 		return
 	end
 
-	-- Grab it (if it is still there).
+	-- Grab it. If someone beat him to it, he picks another slime instead.
 	local slotData = EconomyService.GetSlot(owner, slot)
 	if not slotData or StealService.IsSlotCarried(owner, slot) then
-		finish(thief, "Cancelled")
-		return
+		local taken: { [number]: boolean } = {}
+		for _, other in gang do
+			taken[other.Slot] = true
+		end
+		local other = pickSlot(owner, taken)
+		if other then
+			slot = other
+			thief.Slot = other
+			local otherLocal = cf:PointToObjectSpace(plot.Pedestals[other].Position)
+			local otherAisle = if otherLocal.X > 20 then otherLocal.X - 5 else otherLocal.X + 5
+			say(thief, "Scout")
+			walkTo(thief, cf:PointToWorldSpace(Vector3.new(otherAisle, 3, D / 2 - 10)), 10)
+			walkTo(thief, cf:PointToWorldSpace(Vector3.new(otherAisle, 3, otherLocal.Z)), 10)
+			slotData = EconomyService.GetSlot(owner, slot)
+		end
+		if thief.Done then
+			return
+		end
+		if thief.Flee then
+			flee()
+			return
+		end
+		if not slotData or StealService.IsSlotCarried(owner, slot) then
+			finish(thief, "Cancelled")
+			return
+		end
 	end
 	humanoid:MoveTo(root.Position)
 	task.wait(Economy.ThiefGrabSeconds)
