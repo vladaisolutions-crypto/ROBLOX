@@ -55,8 +55,8 @@ function Hud.Create(screen: ScreenGui, menus: Menus)
 	-- Left menu buttons
 	local left = Instance.new("Frame")
 	left.BackgroundTransparency = 1
-	left.Size = UDim2.fromScale(0.075, 0.7)
-	left.Position = UDim2.fromScale(0.01, 0.2)
+	left.Size = UDim2.fromScale(0.1, 0.68)
+	left.Position = UDim2.fromScale(0.01, 0.18)
 	left.Parent = screen
 	local list = Instance.new("UIListLayout")
 	list.Padding = UDim.new(0.015, 0)
@@ -64,9 +64,10 @@ function Hud.Create(screen: ScreenGui, menus: Menus)
 
 	local dailyDot: Frame? = nil
 	local function menuButton(text: string, color: Color3, onClick: () -> ()): TextButton
-		local button = Kit.Button(left, text, UDim2.fromScale(1, 0.14), nil, color, onClick)
+		local button = Kit.Button(left, text, UDim2.fromScale(1, 0.125), nil, color, onClick)
 		local ratio = Instance.new("UIAspectRatioConstraint")
 		ratio.AspectRatio = 1.25
+		ratio.DominantAxis = Enum.DominantAxis.Height -- 7 buttons always fit the menu's height
 		ratio.Parent = button
 		return button
 	end
@@ -108,8 +109,8 @@ function Hud.Create(screen: ScreenGui, menus: Menus)
 	musicButton = Kit.Button(
 		screen,
 		"🎵",
-		UDim2.fromOffset(46, 46),
-		UDim2.new(0, 12, 1, -58),
+		UDim2.fromOffset(40, 40),
+		UDim2.new(0.01, 0, 0.18, -48),
 		Kit.Colors.Purple,
 		function()
 			Music.SetEnabled(not Music.IsEnabled())
@@ -153,7 +154,7 @@ function Hud.Create(screen: ScreenGui, menus: Menus)
 		screen,
 		"🎁",
 		UDim2.fromScale(0.09, 0.08),
-		UDim2.fromScale(0.9, 0.3),
+		UDim2.fromScale(0.9, 0.33), -- below the offer card (y 0.2-0.31)
 		Kit.Colors.Purple,
 		function()
 			Store.Action("ClaimGift")
@@ -232,7 +233,7 @@ function Hud.Create(screen: ScreenGui, menus: Menus)
 		shine.Parent = label
 
 		local inInfo = TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-		TweenService:Create(holder, inInfo, { Position = UDim2.new(0.5, 0, 0, 74) }):Play()
+		TweenService:Create(holder, inInfo, { Position = UDim2.new(0.5, 0, 0.15, 0) }):Play()
 		TweenService:Create(scale, inInfo, { Scale = 1 }):Play()
 		task.delay(0.35, function()
 			TweenService:Create(

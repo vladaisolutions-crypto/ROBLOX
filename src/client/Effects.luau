@@ -804,8 +804,8 @@ local function onOffer(data: { [string]: any })
 	end
 	lastOffer = os.clock()
 	local card = Instance.new("Frame")
-	card.AnchorPoint = Vector2.new(0.5, 1)
-	card.Position = UDim2.new(0.5, 0, 1, 120)
+	card.AnchorPoint = Vector2.new(1, 0)
+	card.Position = UDim2.new(1, 480, 0.2, 0)
 	card.Size = UDim2.fromOffset(460, 96)
 	card.BackgroundColor3 = Color3.fromRGB(30, 24, 45)
 	card.Parent = screenGui
@@ -854,10 +854,10 @@ local function onOffer(data: { [string]: any })
 		{ BackgroundColor3 = Color3.fromRGB(40, 220, 110) }
 	):Play()
 	TweenService:Create(card, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Position = UDim2.new(0.5, 0, 1, -110),
+		Position = UDim2.new(1, -12, 0.2, 0),
 	}):Play()
 	task.delay(9, function()
-		TweenService:Create(card, TweenInfo.new(0.35), { Position = UDim2.new(0.5, 0, 1, 120) }):Play()
+		TweenService:Create(card, TweenInfo.new(0.35), { Position = UDim2.new(1, 480, 0.2, 0) }):Play()
 		Debris:AddItem(card, 0.4)
 	end)
 end
