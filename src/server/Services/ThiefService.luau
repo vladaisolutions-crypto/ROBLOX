@@ -69,7 +69,6 @@ local Sounds = require(Shared.Config.Sounds).Ids
 local EconomyService = require(script.Parent.EconomyService)
 local DataService = require(script.Parent.DataService)
 local NetService = require(script.Parent.NetService)
-local PassService = require(script.Parent.PassService)
 local PlotService = require(script.Parent.PlotService)
 local StealService = require(script.Parent.StealService)
 local TelemetryService = require(script.Parent.TelemetryService)
@@ -90,7 +89,7 @@ type Thief = {
 
 local ThiefService = {}
 
-ThiefService.Bonked = Signal.new() -- (hero: Player) a thief was bonked by this player (or their guard)
+ThiefService.Bonked = Signal.new() -- (hero: Player) a thief was bonked by this player
 
 -- Raid Shield purchases: thieves skip these bases until the time runs out.
 local shieldUntil: { [Player]: number } = {}
@@ -626,12 +625,25 @@ local function visit(owner: Player, plot: WorldService.Plot, slot: number, lane:
 	local inside = cf:PointToWorldSpace(Vector3.new(aisleX, 3, D / 2 - 10))
 	local grabSpot = cf:PointToWorldSpace(Vector3.new(aisleX, 3, pedLocal.Z))
 	-- He sneaks in from the nearest end of the map, along the belt side.
-	-- Usually from the nearest end of the map, sometimes the far one.
+	-- Thieves come from (and flee to) random spots all around the map: either
+	-- end, or anywhere along the back edge behind the bases, so a raid never
+	-- arrives from one place. Pathfinding takes them through the gaps.
 	local rng = Random.new()
-	local nearest = if cf.Position.X >= 0 then 1 else -1
-	local side = if rng:NextNumber() < 0.7 then nearest else -nearest
-	local laneZ = math.sign(cf.Position.Z) * (World.BeltWidth / 2 + 11 + lane)
-	local edge = Vector3.new(side * (World.MapSizeX / 2 - 12), 3, laneZ)
+	local rowSign = math.sign(cf.Position.Z)
+	local laneZ = rowSign * (World.BeltWidth / 2 + 11 + lane + rng:NextNumber(-2, 2))
+	local function randomEdge(): Vector3
+		local halfX, halfZ = World.MapSizeX / 2 - 12, World.MapSizeZ / 2 - 12
+		local roll = rng:NextNumber()
+		if roll < 0.35 then
+			-- An end of the map, at a random depth on this side.
+			local endSign = if rng:NextNumber() < 0.6 then math.sign(cf.Position.X) else -math.sign(cf.Position.X)
+			return Vector3.new(endSign * halfX, 3, rowSign * rng:NextNumber(10, halfZ))
+		end
+		-- The back edge behind this row of bases, anywhere along it.
+		return Vector3.new(rng:NextNumber(-halfX, halfX), 3, rowSign * halfZ)
+	end
+	local edge = randomEdge()
+	local escape = randomEdge()
 
 	local model, humanoid, root = buildThief(rng)
 	model:PivotTo(CFrame.lookAt(edge, gateFront))
@@ -725,7 +737,7 @@ local function visit(owner: Player, plot: WorldService.Plot, slot: number, lane:
 			end
 		end
 	end)
-	for _, point in { inside, gateFront, Vector3.new(gateFront.X, 3, laneZ), edge } do
+	for _, point in { inside, gateFront, Vector3.new(gateFront.X, 3, laneZ), escape } do
 		if not walkTo(thief, point, 40, true) then
 			if not thief.Done then
 				finish(thief, if PlotService.IsLocked(owner) then "Locked" else "Cancelled")
@@ -952,78 +964,6 @@ local function onSwing(attacker: Player, attackerRoot: BasePart, range: number, 
 	end
 end
 
--- Guard Slime pass: a guard at the owner's gate bonks thieves that come close.
-local guards: { [Player]: Model } = {}
-local function guardFor(owner: Player): Model?
-	local plot = PlotService.GetPlot(owner)
-	if not plot or not PassService.Has(owner, "GuardSlime") then
-		local old = guards[owner]
-		if old then
-			old:Destroy()
-			guards[owner] = nil
-		end
-		return nil
-	end
-	local guard = guards[owner]
-	if guard and guard.Parent then
-		return guard
-	end
-	local model = SlimeBuilder.Build("thunder", "", {})
-	model.Name = "GuardSlime"
-	for _, gui in model:GetDescendants() do
-		if gui:IsA("BillboardGui") then
-			gui:Destroy()
-		end
-	end
-	local at =
-		plot.CFrame:PointToWorldSpace(Vector3.new(-World.PlotWidth / 2 + 6, World.FloorY, World.PlotDepth / 2 - 4))
-	model:PivotTo(
-		CFrame.lookAt(at, at + plot.CFrame.LookVector * -1) + Vector3.new(0, SlimeBuilder.HalfHeight("thunder"), 0)
-	)
-	local root = model.PrimaryPart
-	if root then
-		local label = Instance.new("BillboardGui")
-		label.Size = UDim2.fromOffset(140, 30)
-		label.StudsOffsetWorldSpace = Vector3.new(0, 3.5, 0)
-		label.MaxDistance = 80
-		label.Parent = root
-		local text = Instance.new("TextLabel")
-		text.BackgroundTransparency = 1
-		text.Size = UDim2.fromScale(1, 1)
-		text.Font = Enum.Font.FredokaOne
-		text.TextScaled = true
-		text.TextColor3 = Color3.fromRGB(120, 200, 255)
-		text.TextStrokeTransparency = 0
-		text.Text = "🛡️ Guard"
-		text.Parent = label
-	end
-	model.Parent = plot.Model
-	guards[owner] = model
-	return model
-end
-
-local function guardCheck()
-	for _, owner in Players:GetPlayers() do
-		local guard = guardFor(owner)
-		local root = guard and guard.PrimaryPart
-		if root then
-			local nearest: Thief? = nil
-			local best = Economy.GuardRange
-			for _, thief in allThieves() do
-				if not thief.Done and thief.Model.Parent then
-					local d = (thief.Root.Position - root.Position).Magnitude
-					if d < best then
-						nearest, best = thief, d
-					end
-				end
-			end
-			if nearest then
-				bonkThief(nearest, owner, root.Position, root.CFrame.LookVector, Economy.BonkForce)
-			end
-		end
-	end
-end
-
 function ThiefService.Init()
 	StealService.Swung:Connect(onSwing)
 	PlotService.Locked:Connect(function(player: Player)
@@ -1044,11 +984,6 @@ function ThiefService.Init()
 		end
 		thieves[player] = nil
 		shieldUntil[player] = nil
-		local guard = guards[player]
-		if guard then
-			guard:Destroy()
-			guards[player] = nil
-		end
 		task.defer(checkRaidOver)
 	end)
 end
@@ -1066,12 +1001,6 @@ function ThiefService.Start()
 		while true do
 			task.wait(0.25)
 			shoveCheck()
-		end
-	end)
-	task.spawn(function()
-		while true do
-			task.wait(Economy.GuardInterval)
-			guardCheck()
 		end
 	end)
 end

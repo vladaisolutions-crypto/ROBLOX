@@ -73,19 +73,16 @@ local Economy = {
 	ThiefShoveCooldown = 2.5,
 	ThiefShoveForce = 30,
 	ThiefShoveStun = 1.2,
-	-- Guard Slime pass: bonks thieves near your base.
-	GuardRange = 16, -- studs from the guard (at your gate)
-	GuardInterval = 1.6, -- seconds between its bonks
 	-- Everyone on the server gets this (free, base income) when a raid ends
 	-- with thieves caught and none escaped.
 	RaidVictoryMinutes = 3,
 	RaidVictoryMinimum = 500,
 	ThiefSpacingMin = 1.5, -- seconds between thieves in a raid (random in this range)
 	ThiefSpacingMax = 5,
-	ThiefWalkSpeed = 14, -- sneaking in
-	ThiefCarrySpeed = 17.5, -- running away; players walk 18, so it's a real chase
-	ThiefSpeedMin = 0.9, -- each thief's speed is scaled by a random amount in this range
-	ThiefSpeedMax = 1.02, -- keep the fastest carrier (17.5 x 1.02) just under the players' 18
+	ThiefWalkSpeed = 16, -- sneaking in
+	ThiefCarrySpeed = 18, -- running away: as fast as a player, so cut them off or swing early
+	ThiefSpeedMin = 0.92, -- each thief's speed is scaled by a random amount in this range
+	ThiefSpeedMax = 1.03,
 	ThiefGrabSeconds = 2,
 	ThiefRewardMinutes = 1, -- bonk reward: minutes of the owner's base income
 	ThiefRewardMinimum = 150,

@@ -95,14 +95,6 @@ local Passes: { Pass } = {
 		SuggestedPrice = 79,
 		Icon = "🏏",
 	},
-	{
-		Key = "GuardSlime",
-		Id = 2036348370,
-		Name = "Guard Slime",
-		Description = "A guard slime at your gate bonks thieves for you.",
-		SuggestedPrice = 199,
-		Icon = "🛡️",
-	},
 }
 
 local Products: { Product } = {
