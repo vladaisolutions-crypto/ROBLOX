@@ -163,6 +163,48 @@ local function addHat(model: Model, root: BasePart, hat: string, s: number, top:
 			Enum.Material.Neon,
 			"Ball"
 		)
+	elseif hat == "Bow" then
+		local pink = Color3.fromRGB(255, 70, 150)
+		for _, side in { -1, 1 } do
+			addPart(
+				model,
+				root,
+				"BowLoop",
+				Vector3.new(0.55, 0.4, 0.25) * s,
+				CFrame.new(side * 0.35 * s, top + 0.15 * s, -0.2 * s) * CFrame.Angles(0, 0, math.rad(side * 25)),
+				pink
+			)
+		end
+		addPart(
+			model,
+			root,
+			"BowKnot",
+			Vector3.one * 0.25 * s,
+			CFrame.new(0, top + 0.15 * s, -0.2 * s),
+			pink,
+			nil,
+			"Ball"
+		)
+	elseif hat == "Unihorn" then
+		local base = CFrame.new(0, top + 0.1 * s, -0.35 * s) * CFrame.Angles(math.rad(-20), 0, 0)
+		addPart(
+			model,
+			root,
+			"Horn",
+			Vector3.new(0.35, 0.7, 0.35) * s,
+			base,
+			Color3.fromRGB(255, 220, 120),
+			Enum.Material.Neon
+		)
+		addPart(
+			model,
+			root,
+			"HornTip",
+			Vector3.new(0.18, 0.55, 0.18) * s,
+			base * CFrame.new(0, 0.6 * s, 0),
+			Color3.fromRGB(255, 240, 180),
+			Enum.Material.Neon
+		)
 	elseif hat == "Halo" then
 		for i = 1, 12 do
 			local angle = (i / 12) * math.pi * 2

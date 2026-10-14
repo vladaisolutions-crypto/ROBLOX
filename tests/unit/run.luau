@@ -113,6 +113,8 @@ test("slimes reference real rarities, hats and mutation-safe values", function()
 		Halo = true,
 		Horns = true,
 		Pumpkin = true,
+		Bow = true,
+		Unihorn = true,
 	}
 	for _, def in Slimes.List do
 		assert(Rarities.ByName[def.Rarity], def.Id .. " has unknown rarity " .. def.Rarity)

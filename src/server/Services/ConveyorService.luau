@@ -344,7 +344,9 @@ local function spawnSlime(forcedRarity: string?, startX: number?)
 	tween:Play()
 
 	if rarity.Announce then
-		local prefix = if rarity.Name == "Secret" then "‼️ A SECRET" else "A " .. string.upper(rarity.Name)
+		local prefix = if rarity.Order >= 7
+			then "‼️ A" .. (if rarity.Name == "Eternal" then "N" else "") .. " " .. string.upper(rarity.Name)
+			else "A " .. string.upper(rarity.Name)
 		NetService.Announce(
 			prefix .. " " .. SlimeInfo.DisplayName(def.Id, mutation) .. " is on the belt!",
 			rarity.Color

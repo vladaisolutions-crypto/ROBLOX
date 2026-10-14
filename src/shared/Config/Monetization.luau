@@ -285,6 +285,28 @@ local Products: { Product } = {
 		Rarity = "Secret",
 		Shop = false,
 	},
+	{
+		Key = "BeltDivine",
+		Id = 3718551945,
+		Name = "Buy Divine Slime",
+		Description = "Buy this Divine slime from the belt.",
+		SuggestedPrice = 599,
+		Icon = "🌟",
+		Kind = "BeltSlime",
+		Rarity = "Divine",
+		Shop = false,
+	},
+	{
+		Key = "BeltEternal",
+		Id = 3718551950,
+		Name = "Buy Eternal Slime",
+		Description = "Buy this Eternal slime from the belt.",
+		SuggestedPrice = 999,
+		Icon = "♾️",
+		Kind = "BeltSlime",
+		Rarity = "Eternal",
+		Shop = false,
+	},
 }
 
 local passByKey: { [string]: Pass } = {}

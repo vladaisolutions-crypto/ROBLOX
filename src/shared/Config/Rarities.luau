@@ -33,6 +33,15 @@ local Rarities: { Rarity } = {
 	{ Name = "Legendary", Order = 5, Weight = 8, Color = Color3.fromRGB(255, 195, 40), Lucky = true, Announce = true },
 	{ Name = "Mythic", Order = 6, Weight = 2, Color = Color3.fromRGB(255, 60, 95), Lucky = true, Announce = true },
 	{ Name = "Secret", Order = 7, Weight = 0.4, Color = Color3.fromRGB(30, 255, 220), Lucky = true, Announce = true },
+	{ Name = "Divine", Order = 8, Weight = 0.08, Color = Color3.fromRGB(255, 240, 150), Lucky = true, Announce = true },
+	{
+		Name = "Eternal",
+		Order = 9,
+		Weight = 0.015,
+		Color = Color3.fromRGB(255, 110, 255),
+		Lucky = true,
+		Announce = true,
+	},
 }
 
 local byName: { [string]: Rarity } = {}
