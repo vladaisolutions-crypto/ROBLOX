@@ -18,7 +18,7 @@ return {
 	PlotWidth = 64, -- local X
 	PlotDepth = 72, -- local Z, entrance at +Z/2
 	FloorY = 1,
-	WallHeight = 10,
+	WallHeight = 5, -- fence collision: low enough to jump (default jump ~7.2 studs); the gate lock barrier stays BarrierHeight
 	BarrierHeight = 18,
 
 	PedestalColumns = 6,
