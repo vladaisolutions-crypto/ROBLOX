@@ -348,10 +348,7 @@ function Panels.Daily(screen: ScreenGui): Kit.Panel
 	local function rewardText(day: number): string
 		local base = Store.Get("Income", 0) / math.max(Store.Get("Multiplier", 1), 1e-6)
 		local cash = math.max(Events.DailyMinimumCash[day], math.floor(base * Events.DailyIncomeMinutes[day] * 60))
-		return if day == 7 then "💎
-Epic Slime
-+ " .. Format.Cash(cash) else "💰
-" .. Format.Cash(cash)
+		return if day == 7 then "💎\nEpic Slime\n+ " .. Format.Cash(cash) else "💰\n" .. Format.Cash(cash)
 	end
 	local status = Kit.Label(panel.Body, "", UDim2.fromScale(1, 0.1), UDim2.fromScale(0, 0.64), Kit.Colors.Muted)
 	local button = Kit.Button(
