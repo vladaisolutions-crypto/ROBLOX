@@ -12,6 +12,7 @@ local ChatTags = require(script.ChatTags)
 local Effects = require(script.Effects)
 local Music = require(script.Music)
 local SlimeAnim = require(script.SlimeAnim)
+local Watcher = require(script.Watcher)
 
 local player = Players.LocalPlayer
 
@@ -55,6 +56,7 @@ ChatTags.Start()
 Effects.Start(screen)
 Music.Start()
 SlimeAnim.Start()
+Watcher.Start()
 
 -- Open the daily reward panel on join if there's something to claim.
 task.delay(4, function()

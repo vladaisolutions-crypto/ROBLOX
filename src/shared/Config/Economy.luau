@@ -60,18 +60,18 @@ local Economy = {
 
 	-- Thief raids (ThiefService): every few minutes a wave of thieves hits
 	-- every base on the server at once; anyone can bonk any thief.
-	ThiefFirstDelay = 150, -- seconds after the server starts before the first raid
-	ThiefMinInterval = 150, -- seconds between raids (random in this range)
-	ThiefMaxInterval = 270,
+	ThiefFirstDelay = 110, -- seconds after the server starts before the first raid
+	ThiefMinInterval = 120, -- seconds between raids (random in this range)
+	ThiefMaxInterval = 210,
 	ThiefMinSlimes = 3, -- only bases with at least this many (they skip the best one)
 	-- Thieves per base: weight for 1, 2, 3, 4, 5 (each after a different slime).
-	ThiefGangWeights = { 0, 20, 35, 30, 15 },
+	ThiefGangWeights = { 0, 10, 30, 35, 25 },
 	RaidMaxThieves = 26, -- cap for the whole server per raid (each thief has a Highlight; Roblox shows 31)
 	-- Thieves fight back: a player right in front of one may get shoved over.
-	ThiefShoveRange = 5,
-	ThiefShoveChance = 0.7,
-	ThiefShoveCooldown = 2.5,
-	ThiefShoveForce = 30,
+	ThiefShoveRange = 6.5,
+	ThiefShoveChance = 0.85,
+	ThiefShoveCooldown = 1.8,
+	ThiefShoveForce = 36,
 	ThiefShoveStun = 1.2,
 	-- Everyone on the server gets this (free, base income) when a raid ends
 	-- with thieves caught and none escaped.
@@ -83,7 +83,13 @@ local Economy = {
 	ThiefCarrySpeed = 20, -- running away: faster than a player (18), so cut them off or swing early; Speed Boots (24) catch them
 	ThiefSpeedMin = 0.92, -- each thief's speed is scaled by a random amount in this range
 	ThiefSpeedMax = 1.03,
-	ThiefGrabSeconds = 2,
+	ThiefGrabSeconds = 1.5,
+	ThiefBailChance = 0.2, -- spotted before the grab: chance he runs off (the rest rush in faster)
+	ThiefRushMultiplier = 1.3,
+	-- A locked base doesn't stop them: a thief kneels at the gate and picks
+	-- the lock for this long (bonk him first). Re-locking (Instant Lock) while
+	-- he's at it or inside still traps him.
+	ThiefPickSeconds = 7,
 	ThiefRewardMinutes = 1, -- bonk reward: minutes of the owner's base income
 	ThiefRewardMinimum = 150,
 

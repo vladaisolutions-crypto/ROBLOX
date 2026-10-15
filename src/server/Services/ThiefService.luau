@@ -58,6 +58,14 @@ local LINES: { [string]: { { Text: string, Sound: string } } } = {
 		{ Text = "Aww, it's locked! 😤", Sound = "ThiefLocked1" },
 		{ Text = "Hey! No fair! 😠", Sound = "ThiefLocked2" },
 	},
+	Pick = {
+		{ Text = "Locks can't stop me! 🔓", Sound = "" },
+		{ Text = "Click... click... almost there...", Sound = "" },
+	},
+	Picked = {
+		{ Text = "I'm in! 😈", Sound = "" },
+		{ Text = "Too easy! Ha!", Sound = "" },
+	},
 	Bonked = {
 		{ Text = "OUCH! 😵", Sound = "ThiefBonked1" },
 		{ Text = "Not the bat! 😭", Sound = "ThiefBonked2" },
@@ -105,7 +113,11 @@ type Thief = {
 	LastChased: number,
 	DodgeUntil: number,
 	DodgeDir: Vector3,
+	Picked: boolean, -- picked this base's lock: walks through the barrier
 }
+
+-- Lock picking: metal clicks while he works (bundled with the Roblox client).
+local PICK_SOUND = "rbxasset://sounds/clickfast.wav"
 
 local ThiefService = {}
 
@@ -697,6 +709,7 @@ local function visit(owner: Player, plot: WorldService.Plot, slot: number, lane:
 		LastChased = 0,
 		DodgeUntil = 0,
 		DodgeDir = Vector3.zero,
+		Picked = false,
 	}
 	local gang = thieves[owner]
 	if not gang then
@@ -727,10 +740,10 @@ local function visit(owner: Player, plot: WorldService.Plot, slot: number, lane:
 				-- Spotted before the grab: some bail, the brave ones rush it.
 				thief.Spotted = true
 				say(thief, "Spotted")
-				if rng:NextNumber() < 0.45 then
+				if rng:NextNumber() < Economy.ThiefBailChance then
 					thief.Flee = true
 				else
-					humanoid.WalkSpeed = Economy.ThiefWalkSpeed * thief.Speed * 1.25
+					humanoid.WalkSpeed = Economy.ThiefWalkSpeed * thief.Speed * Economy.ThiefRushMultiplier
 				end
 			elseif thief.Carry and nearestRoot and nearest < 14 and now - thief.LastChased > 4 then
 				-- Chased with the slime: shout, sprint and juke sideways.
@@ -775,8 +788,83 @@ local function visit(owner: Player, plot: WorldService.Plot, slot: number, lane:
 		end
 		return
 	end
-	if PlotService.IsLocked(owner) then
-		finish(thief, "Locked")
+	-- Locked out? He picks the lock at the gate. Bonk him before he's in!
+	local function pickLock(): boolean
+		say(thief, "Locked")
+		humanoid:MoveTo(root.Position)
+		task.wait(1)
+		if thief.Done or thief.Flee then
+			return false
+		end
+		say(thief, "Pick")
+		NetService.Notify(owner, "🔓 A thief is PICKING YOUR LOCK! Bonk him!", "Bad")
+		NetService.FxTo(owner, "Thief", { Position = root.Position })
+
+		local gui = Instance.new("BillboardGui")
+		gui.Name = "LockPick"
+		gui.Size = UDim2.fromOffset(120, 16)
+		gui.StudsOffsetWorldSpace = Vector3.new(0, 3.4, 0)
+		gui.MaxDistance = 90
+		gui.LightInfluence = 0
+		gui.AlwaysOnTop = true
+		local back = Instance.new("Frame")
+		back.Size = UDim2.fromScale(1, 1)
+		back.BackgroundColor3 = Color3.fromRGB(30, 25, 40)
+		back.Parent = gui
+		local fill = Instance.new("Frame")
+		fill.Size = UDim2.fromScale(0, 1)
+		fill.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+		fill.Parent = back
+		for _, frame in { back, fill } do
+			local corner = Instance.new("UICorner")
+			corner.CornerRadius = UDim.new(0.5, 0)
+			corner.Parent = frame
+		end
+		gui.Parent = root
+		local click = Instance.new("Sound")
+		click.SoundId = PICK_SOUND
+		click.Volume = 0.8
+		click.RollOffMaxDistance = 60
+		click.Parent = root
+
+		local started, nextClick = os.clock(), 0
+		while os.clock() - started < Economy.ThiefPickSeconds and PlotService.IsLocked(owner) do
+			if thief.Done or thief.Flee then
+				gui:Destroy()
+				click:Destroy()
+				return false
+			end
+			humanoid:MoveTo(root.Position)
+			fill.Size = UDim2.fromScale((os.clock() - started) / Economy.ThiefPickSeconds, 1)
+			if os.clock() > nextClick then
+				click.PlaybackSpeed = rng:NextNumber(0.8, 1.2)
+				click:Play()
+				nextClick = os.clock() + rng:NextNumber(0.3, 0.8)
+			end
+			task.wait(0.1)
+		end
+		gui:Destroy()
+		click:Destroy()
+		-- He slips through this base's barrier like the owner does.
+		thief.Picked = true
+		for _, part in model:GetDescendants() do
+			if part:IsA("BasePart") then
+				part.CollisionGroup = plot.OwnerGroup
+			end
+		end
+		if PlotService.IsLocked(owner) then
+			say(thief, "Picked")
+			NetService.Notify(owner, "😱 The thief picked your lock! He's inside!", "Bad")
+		end
+		return true
+	end
+
+	if PlotService.IsLocked(owner) and not pickLock() then
+		if thief.Flee then
+			flee()
+		elseif not thief.Done then
+			finish(thief, "Cancelled")
+		end
 		return
 	end
 	-- Stop and scout before going in: look left, look right.

@@ -12,6 +12,19 @@ return {
 		{ Id = "Halloween", Name = "🎃 Halloween Event", Starts = utc(2026, 10, 10), Ends = utc(2026, 11, 4) },
 	},
 
+	-- The Watcher: now and then a tall faceless figure appears far off, stares
+	-- at one player (client-only, nobody else sees it) and vanishes.
+	Watcher = {
+		FirstDelay = 180, -- seconds after joining before the first sighting
+		MinInterval = 240, -- seconds between sightings (random in this range)
+		MaxInterval = 540,
+		MinDistance = 38,
+		MaxDistance = 60,
+		StareSeconds = 6, -- longest he stays
+		SeenSeconds = 1, -- looking straight at him this long makes him vanish
+		VanishDistance = 16, -- walking this close makes him vanish
+	},
+
 	-- Slime Rain: a short burst of faster, luckier spawns on a fixed timer so
 	-- every server has something to wait for.
 	RainEverySeconds = 20 * 60,
