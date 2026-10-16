@@ -115,11 +115,35 @@ test("slimes reference real rarities, hats and mutation-safe values", function()
 		Pumpkin = true,
 		Bow = true,
 		Unihorn = true,
+		Sprout = true,
+		Cloud = true,
+		SunCrown = true,
+		Tiara = true,
+		StarTop = true,
 	}
 	for _, def in Slimes.List do
 		assert(Rarities.ByName[def.Rarity], def.Id .. " has unknown rarity " .. def.Rarity)
 		assert(def.Hat == nil or hats[def.Hat], def.Id .. " has unknown hat " .. tostring(def.Hat))
 		assert(def.Price > 0 and def.Income > 0 and def.Size > 0, def.Id .. " has a non-positive stat")
+	end
+end)
+
+test("every slime looks different", function()
+	local Looks = Slimes.Looks
+	local seen: { [string]: string } = {}
+	for _, def in Slimes.List do
+		assert(def.Shape == nil or Looks.Shapes[def.Shape], def.Id .. " has unknown shape")
+		assert(def.Face == nil or Looks.Faces[def.Face], def.Id .. " has unknown face")
+		local extras = table.clone(def.Extras or {})
+		for _, extra in extras do
+			assert(Looks.Extras[extra], def.Id .. " has unknown extra " .. extra)
+		end
+		table.sort(extras)
+		-- Same shape, face, hat and extras = a lookalike, whatever the colour.
+		local key =
+			table.concat({ def.Shape or "Round", def.Face or "Happy", def.Hat or "-", table.concat(extras, "+") }, "/")
+		assert(seen[key] == nil, def.Id .. " looks just like " .. tostring(seen[key]) .. " (" .. key .. ")")
+		seen[key] = def.Id
 	end
 end)
 

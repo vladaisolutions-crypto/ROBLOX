@@ -1062,6 +1062,15 @@ function Effects.Start(screen: ScreenGui)
 			onSwing(data)
 		elseif kind == "Bonk" then
 			onBonk(data)
+		elseif kind == "Meteor" and typeof(data.Position) == "Vector3" then
+			-- Chaos meteor impact: fire, a ring and a thud you feel up close.
+			burst(data.Position, Color3.fromRGB(255, 120, 30), 30, 30, 1.1)
+			burst(data.Position, Color3.fromRGB(90, 70, 60), 16, 14, 1.4)
+			shockwave(data.Position, Color3.fromRGB(255, 160, 60), 12)
+			play(Sounds.Bonk, data.Position, 1.2, 0.45)
+			if (camera.CFrame.Position - data.Position).Magnitude < 45 then
+				shake(0.08, 0.4)
+			end
 		end
 	end)
 	hauntedRain()

@@ -223,6 +223,11 @@ local function appear()
 	end)
 end
 
+-- Show him now (if there's a good spot), e.g. during a Blackout.
+function Watcher.Appear()
+	appear()
+end
+
 function Watcher.Start()
 	task.spawn(function()
 		task.wait(Tuning.FirstDelay)

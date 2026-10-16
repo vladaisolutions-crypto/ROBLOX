@@ -79,8 +79,8 @@ local Economy = {
 	RaidVictoryMinimum = 500,
 	ThiefSpacingMin = 1.5, -- seconds between thieves in a raid (random in this range)
 	ThiefSpacingMax = 5,
-	ThiefWalkSpeed = 20, -- sneaking in (players walk 18)
-	ThiefCarrySpeed = 20, -- running away: faster than a player (18), so cut them off or swing early; Speed Boots (24) catch them
+	ThiefWalkSpeed = 24, -- sneaking in (players walk 18)
+	ThiefCarrySpeed = 22, -- running away: faster than a player (18), so cut them off or swing early; Speed Boots (24) catch them
 	ThiefSpeedMin = 0.92, -- each thief's speed is scaled by a random amount in this range
 	ThiefSpeedMax = 1.03,
 	ThiefGrabSeconds = 1.5,
@@ -92,6 +92,16 @@ local Economy = {
 	-- the lock for this long (bonk him first). Re-locking (Instant Lock) while
 	-- he's at it or inside still traps him.
 	ThiefPickSeconds = 7,
+	-- Toughness: bat hits to take one down. A hit that doesn't finish him
+	-- makes him shove back and sprint. Brutes are bigger and take more.
+	ThiefHits = 2,
+	ThiefBruteChance = 0.2,
+	ThiefBruteHits = 3,
+	ThiefBruteScale = 1.3,
+	-- Juking: a player this close makes him sidestep and sprint.
+	ThiefDodgeRange = 11,
+	ThiefDodgeCooldown = 1.6,
+	ThiefSprintMultiplier = 1.25,
 	ThiefRewardMinutes = 1, -- bonk reward: minutes of the owner's base income
 	ThiefRewardMinimum = 150,
 

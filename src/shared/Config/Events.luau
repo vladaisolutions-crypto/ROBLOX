@@ -25,6 +25,54 @@ return {
 		VanishDistance = 16, -- walking this close makes him vanish
 	},
 
+	-- Chaos events (ChaosService): every few minutes something random happens
+	-- to the whole server so it never gets boring. Never during a raid or
+	-- Slime Rain. Weight = how often each one is picked.
+	Chaos = {
+		FirstDelay = 90,
+		MinInterval = 150,
+		MaxInterval = 270,
+		List = {
+			{
+				Id = "CashRain",
+				Weight = 3,
+				Seconds = 40,
+				Text = "💰 CASH RAIN! Coins are falling everywhere - grab them!",
+			},
+			{
+				Id = "Meteors",
+				Weight = 2,
+				Seconds = 40,
+				Text = "☄️ METEOR SHOWER! Dodge the red circles, grab the crystals!",
+			},
+			{ Id = "LowGravity", Weight = 2, Seconds = 40, Text = "🌙 LOW GRAVITY! Moon jumps for 40 seconds!" },
+			{ Id = "SpeedFrenzy", Weight = 2, Seconds = 40, Text = "⚡ SPEED FRENZY! Everyone runs 1.5x faster!" },
+			{
+				Id = "LuckyStorm",
+				Weight = 2,
+				Seconds = 60,
+				Text = "🍀 LUCKY STORM! 3x luck on the belt for 60 seconds!",
+			},
+			{
+				Id = "Blackout",
+				Weight = 2,
+				Seconds = 45,
+				Text = "🌑 BLACKOUT! The lights went out... something is watching.",
+			},
+		},
+		CoinEvery = 0.2, -- seconds between falling coins (Cash Rain)
+		CoinMinutes = 0.04, -- each coin pays this many minutes of base income
+		CoinMinimum = 5,
+		MeteorEvery = 1.4,
+		MeteorWarnSeconds = 1.5,
+		MeteorRadius = 10, -- knockback radius
+		CrystalMinutes = 0.4, -- each meteor crystal pays this many minutes of base income
+		CrystalMinimum = 40,
+		LowGravity = 60, -- workspace gravity during Low Gravity (normal 196.2)
+		SpeedMultiplier = 1.5,
+		Luck = 3,
+	},
+
 	-- Slime Rain: a short burst of faster, luckier spawns on a fixed timer so
 	-- every server has something to wait for.
 	RainEverySeconds = 20 * 60,

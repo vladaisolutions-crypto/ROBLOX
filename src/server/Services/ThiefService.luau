@@ -66,6 +66,11 @@ local LINES: { [string]: { { Text: string, Sound: string } } } = {
 		{ Text = "I'm in! 😈", Sound = "" },
 		{ Text = "Too easy! Ha!", Sound = "" },
 	},
+	Hurt = {
+		{ Text = "Is that all you got?! 😤", Sound = "" },
+		{ Text = "Ow! Now I'm MAD! 😡", Sound = "" },
+		{ Text = "That tickled! 😏", Sound = "" },
+	},
 	Bonked = {
 		{ Text = "OUCH! 😵", Sound = "ThiefBonked1" },
 		{ Text = "Not the bat! 😭", Sound = "ThiefBonked2" },
@@ -113,6 +118,9 @@ type Thief = {
 	DodgeUntil: number,
 	DodgeDir: Vector3,
 	Picked: boolean, -- picked this base's lock: walks through the barrier
+	Hits: number, -- bat hits left before he goes down
+	HitAt: number,
+	Hearts: TextLabel?,
 }
 
 -- Lock picking: metal clicks while he works (bundled with the Roblox client).
@@ -684,6 +692,12 @@ local function visit(owner: Player, plot: WorldService.Plot, slot: number, lane:
 	model.Parent = workspace
 	root:SetNetworkOwner(nil)
 	local speed = rng:NextNumber(Economy.ThiefSpeedMin, Economy.ThiefSpeedMax)
+	local brute = rng:NextNumber() < Economy.ThiefBruteChance
+	if brute then
+		-- A big one: takes more hits, a touch slower.
+		model:ScaleTo(Economy.ThiefBruteScale)
+		speed *= 0.92
+	end
 	humanoid.WalkSpeed = Economy.ThiefWalkSpeed * speed
 	local thief: Thief = {
 		Owner = owner,
@@ -700,7 +714,29 @@ local function visit(owner: Player, plot: WorldService.Plot, slot: number, lane:
 		DodgeUntil = 0,
 		DodgeDir = Vector3.zero,
 		Picked = false,
+		Hits = if brute then Economy.ThiefBruteHits else Economy.ThiefHits,
+		HitAt = 0,
 	}
+	-- Hearts over his head: how many more bonks he can take.
+	local head = model:FindFirstChild("Head")
+	if head and head:IsA("BasePart") and thief.Hits > 1 then
+		local gui = Instance.new("BillboardGui")
+		gui.Name = "Hearts"
+		gui.Size = UDim2.fromOffset(110, 26)
+		gui.StudsOffsetWorldSpace = Vector3.new(0, 2.6, 0)
+		gui.MaxDistance = 80
+		gui.LightInfluence = 0
+		gui.AlwaysOnTop = true
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.fromScale(1, 1)
+		label.BackgroundTransparency = 1
+		label.TextScaled = true
+		label.Font = Enum.Font.FredokaOne
+		label.Text = string.rep("❤️", thief.Hits)
+		label.Parent = gui
+		gui.Parent = head
+		thief.Hearts = label
+	end
 	local gang = thieves[owner]
 	if not gang then
 		gang = {}
@@ -731,19 +767,27 @@ local function visit(owner: Player, plot: WorldService.Plot, slot: number, lane:
 				thief.Spotted = true
 				say(thief, "Spotted")
 				humanoid.WalkSpeed = Economy.ThiefWalkSpeed * thief.Speed * Economy.ThiefRushMultiplier
-			elseif thief.Carry and nearestRoot and nearest < 14 and now - thief.LastChased > 4 then
+			elseif
+				nearestRoot
+				and nearest < Economy.ThiefDodgeRange
+				and now - thief.LastChased > Economy.ThiefDodgeCooldown
+			then
 				-- Chased with the slime: shout, sprint and juke sideways.
 				thief.LastChased = now
-				say(thief, "Chased")
+				if thief.Carry then
+					say(thief, "Chased")
+				end
 				local away =
 					Vector3.new(root.Position.X - nearestRoot.Position.X, 0, root.Position.Z - nearestRoot.Position.Z)
 				local side = if away.Magnitude > 0.1 then away.Unit:Cross(Vector3.yAxis) else root.CFrame.RightVector
 				thief.DodgeDir = side * (if rng:NextNumber() < 0.5 then -1 else 1)
 				thief.DodgeUntil = now + 0.6
-				humanoid.WalkSpeed = Economy.ThiefCarrySpeed * thief.Speed * 1.12
-				task.delay(1.5, function()
+				local base = if thief.Carry then Economy.ThiefCarrySpeed else Economy.ThiefWalkSpeed
+				humanoid.WalkSpeed = base * thief.Speed * Economy.ThiefSprintMultiplier
+				task.delay(1.2, function()
 					if not thief.Done then
-						humanoid.WalkSpeed = Economy.ThiefCarrySpeed * thief.Speed
+						local now2 = if thief.Carry then Economy.ThiefCarrySpeed else Economy.ThiefWalkSpeed
+						humanoid.WalkSpeed = now2 * thief.Speed
 					end
 				end)
 			end
@@ -1189,7 +1233,68 @@ local function bonkThief(thief: Thief, attacker: Player, from: Vector3, fallback
 	end)
 end
 
--- Bat hit: every thief in reach in front of the swinger gets bonked.
+-- A hit he shrugs off: staggers back, loses a heart, then shoves the
+-- attacker and sprints off angry. He keeps hold of the slime.
+local function hurtThief(thief: Thief, attacker: Player, from: Vector3, fallback: Vector3, force: number)
+	local now = os.clock()
+	if now - thief.HitAt < 0.45 then
+		return
+	end
+	thief.HitAt = now
+	thief.Hits -= 1
+	if thief.Hearts then
+		thief.Hearts.Text = string.rep("❤️", thief.Hits)
+	end
+	local offset = thief.Root.Position - from
+	local direction = Vector3.new(offset.X, 0, offset.Z)
+	direction = if direction.Magnitude > 0.01 then direction.Unit else fallback
+	NetService.Fx("Bonk", {
+		Position = thief.Root.Position + Vector3.new(0, 2, 0),
+		Attacker = attacker.UserId,
+		Dropped = false,
+		Golden = false,
+		Stun = 0.3,
+	})
+	thief.Root.AssemblyLinearVelocity = direction * force * 0.5 + Vector3.new(0, 18, 0)
+	say(thief, "Hurt")
+	local humanoid = thief.Humanoid
+	local base = if thief.Carry then Economy.ThiefCarrySpeed else Economy.ThiefWalkSpeed
+	humanoid.WalkSpeed = base * thief.Speed * Economy.ThiefSprintMultiplier
+	task.delay(2, function()
+		if not thief.Done then
+			local after = if thief.Carry then Economy.ThiefCarrySpeed else Economy.ThiefWalkSpeed
+			humanoid.WalkSpeed = after * thief.Speed
+		end
+	end)
+	-- Payback: shove whoever hit him if they're still close.
+	task.delay(0.35, function()
+		local character = attacker.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if thief.Done or not root or not root:IsA("BasePart") then
+			return
+		end
+		local push = Vector3.new(root.Position.X - thief.Root.Position.X, 0, root.Position.Z - thief.Root.Position.Z)
+		if push.Magnitude < 9 and push.Magnitude > 0.1 then
+			thief.LastShove = os.clock()
+			say(thief, "Shove")
+			StealService.Knock(
+				attacker,
+				push.Unit * Economy.ThiefShoveForce + Vector3.new(0, Economy.ThiefShoveForce * 0.5, 0),
+				Economy.ThiefShoveStun
+			)
+			NetService.Fx("Bonk", {
+				Position = root.Position + Vector3.new(0, 2, 0),
+				Victim = attacker.UserId,
+				Dropped = false,
+				Golden = false,
+				Stun = Economy.ThiefShoveStun,
+			})
+		end
+	end)
+end
+
+-- Bat hit: every thief in reach in front of the swinger loses a heart; the
+-- last one bonks him.
 local function onSwing(attacker: Player, attackerRoot: BasePart, range: number, force: number)
 	for _, thief in allThieves() do
 		if not thief.Done and thief.Model.Parent then
@@ -1197,7 +1302,11 @@ local function onSwing(attacker: Player, attackerRoot: BasePart, range: number, 
 			local distance = offset.Magnitude
 			local inFront = distance < 3 or attackerRoot.CFrame.LookVector:Dot(offset.Unit) > 0.2
 			if distance <= range and inFront then
-				bonkThief(thief, attacker, attackerRoot.Position, attackerRoot.CFrame.LookVector, force)
+				if thief.Hits > 1 then
+					hurtThief(thief, attacker, attackerRoot.Position, attackerRoot.CFrame.LookVector, force)
+				elseif os.clock() - thief.HitAt >= 0.45 then
+					bonkThief(thief, attacker, attackerRoot.Position, attackerRoot.CFrame.LookVector, force)
+				end
 			end
 		end
 	end

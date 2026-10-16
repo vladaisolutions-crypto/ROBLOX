@@ -13,6 +13,7 @@ local Effects = require(script.Effects)
 local Music = require(script.Music)
 local SlimeAnim = require(script.SlimeAnim)
 local Watcher = require(script.Watcher)
+local Chaos = require(script.Chaos)
 
 local player = Players.LocalPlayer
 
@@ -57,6 +58,7 @@ Effects.Start(screen)
 Music.Start()
 SlimeAnim.Start()
 Watcher.Start()
+Chaos.Start()
 
 -- Open the daily reward panel on join if there's something to claim.
 task.delay(4, function()

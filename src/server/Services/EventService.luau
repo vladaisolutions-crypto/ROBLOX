@@ -15,6 +15,7 @@ local EventService = {}
 EventService.Changed = Signal.new()
 
 local luckEndsAt = 0
+local bonusLuck, bonusLuckEndsAt = 1, 0
 local rainWasActive = false
 
 local function now(): number
@@ -43,6 +44,9 @@ function EventService.Luck(): number
 	end
 	if EventService.RainActive() then
 		luck *= Events.RainLuck
+	end
+	if now() < bonusLuckEndsAt then
+		luck *= bonusLuck
 	end
 	return luck
 end
@@ -86,6 +90,11 @@ end
 local function broadcast()
 	NetService.BroadcastEvents(EventService.State())
 	EventService.Changed:Fire()
+end
+
+-- A temporary luck multiplier from a chaos event (doesn't stack).
+function EventService.BoostLuck(multiplier: number, seconds: number)
+	bonusLuck, bonusLuckEndsAt = multiplier, now() + seconds
 end
 
 -- Adds server luck time (stacks). Called when someone buys Server Luck.

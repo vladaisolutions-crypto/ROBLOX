@@ -16,6 +16,11 @@ export type SlimeDef = {
 	Transparency: number?,
 	Size: number,
 	Hat: string?,
+	-- Looks (SlimeBuilder): every slime gets its own combination so none look alike.
+	Shape: string?, -- Round (default), Tall, Flat, Chunky, Drop
+	Face: string?, -- Happy (default), Cute, Angry, Sleepy, Cyclops, Cool, Fangs, Glow, Derp, Sparkle, Boo, Jack
+	Extras: { string }?, -- see Looks.Extras
+	Accent: Color3?, -- colour for spots, wings, glowing eyes... (default: a paler body colour)
 	Glow: boolean?,
 	Event: string?, -- only spawns while this event is active
 	MergeOnly: boolean?, -- never on the belt: only made by merging
@@ -35,6 +40,7 @@ local Slimes: { SlimeDef } = {
 		Income = 1,
 		Color = Color3.fromRGB(110, 220, 90),
 		Size = 1,
+		Face = "Happy",
 	},
 	{
 		Id = "bubble",
@@ -45,6 +51,8 @@ local Slimes: { SlimeDef } = {
 		Color = Color3.fromRGB(150, 210, 255),
 		Size = 1,
 		Transparency = 0.25,
+		Face = "Cute",
+		Extras = { "Bubbles" },
 	},
 	{
 		Id = "pebble",
@@ -55,6 +63,10 @@ local Slimes: { SlimeDef } = {
 		Color = Color3.fromRGB(150, 150, 160),
 		Size = 0.9,
 		Material = Enum.Material.Slate,
+		Shape = "Chunky",
+		Face = "Sleepy",
+		Extras = { "Spots" },
+		Accent = Color3.fromRGB(95, 95, 105),
 	},
 	{
 		Id = "mint",
@@ -64,6 +76,9 @@ local Slimes: { SlimeDef } = {
 		Income = 5,
 		Color = Color3.fromRGB(160, 255, 200),
 		Size = 1,
+		Shape = "Tall",
+		Extras = { "Spots" },
+		Accent = Color3.fromRGB(70, 45, 35),
 	},
 
 	-- Uncommon
@@ -75,6 +90,9 @@ local Slimes: { SlimeDef } = {
 		Income = 10,
 		Color = Color3.fromRGB(255, 110, 170),
 		Size = 1.05,
+		Face = "Cute",
+		Extras = { "Spots" },
+		Accent = Color3.fromRGB(255, 235, 140),
 	},
 	{
 		Id = "lemon",
@@ -84,6 +102,8 @@ local Slimes: { SlimeDef } = {
 		Income = 18,
 		Color = Color3.fromRGB(255, 240, 90),
 		Size = 1.05,
+		Shape = "Chunky",
+		Face = "Angry",
 	},
 	{
 		Id = "moss",
@@ -94,6 +114,10 @@ local Slimes: { SlimeDef } = {
 		Color = Color3.fromRGB(70, 140, 60),
 		Size = 1.1,
 		Hat = "Leaf",
+		Shape = "Chunky",
+		Face = "Sleepy",
+		Extras = { "Spots" },
+		Accent = Color3.fromRGB(40, 95, 35),
 	},
 	{
 		Id = "cocoa",
@@ -103,6 +127,9 @@ local Slimes: { SlimeDef } = {
 		Income = 45,
 		Color = Color3.fromRGB(125, 80, 50),
 		Size = 1.1,
+		Shape = "Flat",
+		Face = "Sleepy",
+		Extras = { "Sprinkles" },
 	},
 
 	-- Rare
@@ -116,6 +143,9 @@ local Slimes: { SlimeDef } = {
 		Size = 1.15,
 		Material = Enum.Material.Glass,
 		Transparency = 0.2,
+		Shape = "Flat",
+		Extras = { "Bubbles" },
+		Accent = Color3.fromRGB(200, 240, 255),
 	},
 	{
 		Id = "ember",
@@ -126,6 +156,9 @@ local Slimes: { SlimeDef } = {
 		Color = Color3.fromRGB(255, 120, 40),
 		Size = 1.15,
 		Glow = true,
+		Shape = "Drop",
+		Face = "Angry",
+		Extras = { "Flames" },
 	},
 	{
 		Id = "frost",
@@ -136,6 +169,10 @@ local Slimes: { SlimeDef } = {
 		Color = Color3.fromRGB(200, 240, 255),
 		Size = 1.2,
 		Material = Enum.Material.Ice,
+		Shape = "Chunky",
+		Face = "Sleepy",
+		Extras = { "Spikes", "Snow" },
+		Accent = Color3.fromRGB(235, 250, 255),
 	},
 	{
 		Id = "thunder",
@@ -146,6 +183,9 @@ local Slimes: { SlimeDef } = {
 		Color = Color3.fromRGB(255, 230, 0),
 		Size = 1.2,
 		Hat = "Antenna",
+		Shape = "Tall",
+		Face = "Cool",
+		Extras = { "Sparks" },
 	},
 
 	-- Epic
@@ -159,6 +199,10 @@ local Slimes: { SlimeDef } = {
 		Size = 1.3,
 		Material = Enum.Material.Glass,
 		Transparency = 0.15,
+		Shape = "Drop",
+		Face = "Sparkle",
+		Extras = { "Spikes", "Core" },
+		Accent = Color3.fromRGB(240, 210, 255),
 	},
 	{
 		Id = "lava",
@@ -169,6 +213,10 @@ local Slimes: { SlimeDef } = {
 		Color = Color3.fromRGB(255, 70, 20),
 		Size = 1.3,
 		Material = Enum.Material.Neon,
+		Shape = "Flat",
+		Face = "Angry",
+		Extras = { "Drip", "Smoke" },
+		Accent = Color3.fromRGB(60, 40, 40),
 	},
 	{
 		Id = "toxic",
@@ -179,6 +227,8 @@ local Slimes: { SlimeDef } = {
 		Color = Color3.fromRGB(150, 255, 0),
 		Size = 1.35,
 		Glow = true,
+		Face = "Derp",
+		Extras = { "Drip", "Bubbles" },
 	},
 	{
 		Id = "wizard",
@@ -189,6 +239,10 @@ local Slimes: { SlimeDef } = {
 		Color = Color3.fromRGB(80, 60, 200),
 		Size = 1.35,
 		Hat = "Wizard",
+		Shape = "Tall",
+		Face = "Sleepy",
+		Extras = { "Stars" },
+		Accent = Color3.fromRGB(255, 240, 120),
 	},
 
 	-- Legendary
@@ -202,6 +256,9 @@ local Slimes: { SlimeDef } = {
 		Size = 1.5,
 		Hat = "Crown",
 		Material = Enum.Material.Foil,
+		Face = "Happy",
+		Extras = { "Cape" },
+		Accent = Color3.fromRGB(200, 30, 40),
 	},
 	{
 		Id = "angel",
@@ -213,6 +270,9 @@ local Slimes: { SlimeDef } = {
 		Size = 1.5,
 		Hat = "Halo",
 		Glow = true,
+		Face = "Cute",
+		Extras = { "Wings" },
+		Accent = Color3.fromRGB(255, 255, 255),
 	},
 	{
 		Id = "devil",
@@ -223,6 +283,9 @@ local Slimes: { SlimeDef } = {
 		Color = Color3.fromRGB(200, 20, 40),
 		Size = 1.55,
 		Hat = "Horns",
+		Face = "Fangs",
+		Extras = { "Tail" },
+		Accent = Color3.fromRGB(30, 10, 15),
 	},
 	{
 		Id = "phoenix",
@@ -234,6 +297,10 @@ local Slimes: { SlimeDef } = {
 		Size = 1.6,
 		Material = Enum.Material.Neon,
 		Glow = true,
+		Shape = "Drop",
+		Face = "Angry",
+		Extras = { "Wings", "Flames" },
+		Accent = Color3.fromRGB(255, 220, 60),
 	},
 
 	-- Mythic
@@ -247,6 +314,9 @@ local Slimes: { SlimeDef } = {
 		Size = 1.75,
 		Material = Enum.Material.Neon,
 		Glow = true,
+		Face = "Sparkle",
+		Extras = { "Ring", "Stars" },
+		Accent = Color3.fromRGB(180, 140, 255),
 	},
 	{
 		Id = "prism",
@@ -259,6 +329,10 @@ local Slimes: { SlimeDef } = {
 		Material = Enum.Material.Glass,
 		Transparency = 0.1,
 		Glow = true,
+		Shape = "Tall",
+		Face = "Cool",
+		Extras = { "Sprinkles", "Core" },
+		Accent = Color3.fromRGB(255, 200, 255),
 	},
 	{
 		Id = "void",
@@ -269,7 +343,10 @@ local Slimes: { SlimeDef } = {
 		Color = Color3.fromRGB(15, 10, 25),
 		Size = 1.8,
 		Glow = true,
-		Hat = "Horns",
+		Shape = "Flat",
+		Face = "Glow",
+		Extras = { "Orbit", "Smoke" },
+		Accent = Color3.fromRGB(150, 60, 255),
 	},
 	{
 		Id = "celestial",
@@ -280,8 +357,12 @@ local Slimes: { SlimeDef } = {
 		Color = Color3.fromRGB(255, 235, 160),
 		Size = 1.85,
 		Material = Enum.Material.Neon,
-		Hat = "Halo",
 		Glow = true,
+		Hat = "StarTop",
+		Shape = "Tall",
+		Face = "Sparkle",
+		Extras = { "Stars" },
+		Accent = Color3.fromRGB(255, 250, 200),
 	},
 
 	-- Secret
@@ -296,6 +377,10 @@ local Slimes: { SlimeDef } = {
 		Material = Enum.Material.Neon,
 		Hat = "Crown",
 		Glow = true,
+		Shape = "Chunky",
+		Face = "Sparkle",
+		Extras = { "Wings", "Ring" },
+		Accent = Color3.fromRGB(255, 255, 255),
 	},
 	{
 		Id = "glitch",
@@ -308,6 +393,9 @@ local Slimes: { SlimeDef } = {
 		Material = Enum.Material.Neon,
 		Hat = "Antenna",
 		Glow = true,
+		Shape = "Chunky",
+		Face = "Cyclops",
+		Extras = { "Sparks", "Sprinkles" },
 	},
 	{
 		Id = "omega",
@@ -320,6 +408,10 @@ local Slimes: { SlimeDef } = {
 		Material = Enum.Material.ForceField,
 		Hat = "Halo",
 		Glow = true,
+		Shape = "Tall",
+		Face = "Cyclops",
+		Extras = { "Orbit" },
+		Accent = Color3.fromRGB(200, 230, 255),
 	},
 
 	-- Halloween (limited: only spawn during the event, kept forever once owned)
@@ -334,6 +426,8 @@ local Slimes: { SlimeDef } = {
 		Hat = "Pumpkin",
 		Event = "Halloween",
 		MergeInto = "jackoslime",
+		Shape = "Chunky",
+		Face = "Jack",
 	},
 	{
 		Id = "ghost",
@@ -346,6 +440,8 @@ local Slimes: { SlimeDef } = {
 		Transparency = 0.45,
 		Event = "Halloween",
 		MergeInto = "poltergeist",
+		Shape = "Tall",
+		Face = "Boo",
 	},
 	{
 		Id = "witch",
@@ -357,6 +453,10 @@ local Slimes: { SlimeDef } = {
 		Size = 1.5,
 		Hat = "WitchHat",
 		Event = "Halloween",
+		Shape = "Chunky",
+		Face = "Angry",
+		Extras = { "Bubbles" },
+		Accent = Color3.fromRGB(180, 255, 120),
 	},
 	{
 		Id = "phantom",
@@ -370,6 +470,10 @@ local Slimes: { SlimeDef } = {
 		Glow = true,
 		Hat = "WitchHat",
 		Event = "Halloween",
+		Shape = "Tall",
+		Face = "Glow",
+		Extras = { "Smoke" },
+		Accent = Color3.fromRGB(120, 255, 120),
 	},
 	-- More slimes for every rank (added in the second content update).
 	{
@@ -381,6 +485,9 @@ local Slimes: { SlimeDef } = {
 		Color = Color3.fromRGB(90, 170, 255),
 		Size = 1,
 		Transparency = 0.25,
+		Shape = "Flat",
+		Face = "Derp",
+		Extras = { "Drip" },
 	},
 	{
 		Id = "sprout",
@@ -390,7 +497,8 @@ local Slimes: { SlimeDef } = {
 		Income = 4,
 		Color = Color3.fromRGB(140, 220, 110),
 		Size = 1,
-		Hat = "Leaf",
+		Hat = "Sprout",
+		Face = "Cute",
 	},
 	{
 		Id = "honey",
@@ -402,6 +510,8 @@ local Slimes: { SlimeDef } = {
 		Size = 1.05,
 		Material = Enum.Material.Glass,
 		Transparency = 0.1,
+		Shape = "Drop",
+		Extras = { "Drip" },
 	},
 	{
 		Id = "candy",
@@ -412,6 +522,9 @@ local Slimes: { SlimeDef } = {
 		Color = Color3.fromRGB(255, 130, 200),
 		Size = 1.05,
 		Hat = "Bow",
+		Face = "Cute",
+		Extras = { "Stripes" },
+		Accent = Color3.fromRGB(255, 255, 255),
 	},
 	{
 		Id = "coral",
@@ -421,6 +534,10 @@ local Slimes: { SlimeDef } = {
 		Income = 140,
 		Color = Color3.fromRGB(255, 120, 100),
 		Size = 1.15,
+		Shape = "Flat",
+		Face = "Cute",
+		Extras = { "Spots" },
+		Accent = Color3.fromRGB(255, 235, 225),
 	},
 	{
 		Id = "storm",
@@ -431,7 +548,9 @@ local Slimes: { SlimeDef } = {
 		Color = Color3.fromRGB(90, 100, 130),
 		Size = 1.2,
 		Material = Enum.Material.Slate,
-		Hat = "Antenna",
+		Hat = "Cloud",
+		Face = "Angry",
+		Extras = { "Sparks" },
 	},
 	{
 		Id = "plasma",
@@ -442,6 +561,9 @@ local Slimes: { SlimeDef } = {
 		Color = Color3.fromRGB(60, 230, 255),
 		Size = 1.3,
 		Material = Enum.Material.Neon,
+		Face = "Glow",
+		Extras = { "Ring", "Core" },
+		Accent = Color3.fromRGB(230, 255, 255),
 	},
 	{
 		Id = "shadow",
@@ -451,7 +573,9 @@ local Slimes: { SlimeDef } = {
 		Income = 2.8 * K,
 		Color = Color3.fromRGB(35, 30, 45),
 		Size = 1.3,
-		Hat = "Horns",
+		Face = "Glow",
+		Extras = { "Smoke" },
+		Accent = Color3.fromRGB(190, 60, 255),
 	},
 	{
 		Id = "unicorn",
@@ -463,6 +587,10 @@ local Slimes: { SlimeDef } = {
 		Size = 1.5,
 		Glow = true,
 		Hat = "Unihorn",
+		Shape = "Tall",
+		Face = "Cute",
+		Extras = { "Stars" },
+		Accent = Color3.fromRGB(255, 140, 220),
 	},
 	{
 		Id = "dragon",
@@ -474,6 +602,10 @@ local Slimes: { SlimeDef } = {
 		Size = 1.6,
 		Material = Enum.Material.Neon,
 		Hat = "Horns",
+		Shape = "Chunky",
+		Face = "Fangs",
+		Extras = { "Wings", "Spikes", "Tail" },
+		Accent = Color3.fromRGB(120, 10, 20),
 	},
 	{
 		Id = "aurora",
@@ -485,6 +617,10 @@ local Slimes: { SlimeDef } = {
 		Size = 1.8,
 		Material = Enum.Material.Neon,
 		Glow = true,
+		Shape = "Flat",
+		Face = "Cute",
+		Extras = { "Stripes", "Snow" },
+		Accent = Color3.fromRGB(190, 120, 255),
 	},
 	{
 		Id = "titan",
@@ -496,6 +632,10 @@ local Slimes: { SlimeDef } = {
 		Size = 2,
 		Material = Enum.Material.Slate,
 		Hat = "Crown",
+		Shape = "Chunky",
+		Face = "Angry",
+		Extras = { "Spikes" },
+		Accent = Color3.fromRGB(80, 75, 85),
 	},
 	{
 		Id = "quantum",
@@ -508,6 +648,10 @@ local Slimes: { SlimeDef } = {
 		Material = Enum.Material.Glass,
 		Transparency = 0.2,
 		Glow = true,
+		Shape = "Drop",
+		Face = "Sparkle",
+		Extras = { "Orbit", "Core" },
+		Accent = Color3.fromRGB(100, 255, 255),
 	},
 	{
 		Id = "blackhole",
@@ -519,6 +663,10 @@ local Slimes: { SlimeDef } = {
 		Size = 2.1,
 		Material = Enum.Material.ForceField,
 		Glow = true,
+		Shape = "Flat",
+		Face = "Glow",
+		Extras = { "Ring", "Smoke" },
+		Accent = Color3.fromRGB(255, 140, 40),
 	},
 	-- Divine
 	{
@@ -532,6 +680,10 @@ local Slimes: { SlimeDef } = {
 		Material = Enum.Material.Neon,
 		Glow = true,
 		Hat = "Halo",
+		Shape = "Chunky",
+		Face = "Glow",
+		Extras = { "Wings", "Stars" },
+		Accent = Color3.fromRGB(255, 220, 90),
 	},
 	{
 		Id = "sunlord",
@@ -543,7 +695,9 @@ local Slimes: { SlimeDef } = {
 		Size = 2.3,
 		Material = Enum.Material.Neon,
 		Glow = true,
-		Hat = "Crown",
+		Hat = "SunCrown",
+		Face = "Cool",
+		Extras = { "Flames" },
 	},
 	{
 		Id = "moonqueen",
@@ -556,7 +710,11 @@ local Slimes: { SlimeDef } = {
 		Material = Enum.Material.Glass,
 		Transparency = 0.1,
 		Glow = true,
-		Hat = "Crown",
+		Hat = "Tiara",
+		Shape = "Tall",
+		Face = "Sleepy",
+		Extras = { "Orbit", "Stars" },
+		Accent = Color3.fromRGB(230, 240, 255),
 	},
 	-- Eternal
 	{
@@ -570,6 +728,9 @@ local Slimes: { SlimeDef } = {
 		Material = Enum.Material.ForceField,
 		Glow = true,
 		Hat = "Halo",
+		Face = "Sparkle",
+		Extras = { "Ring", "Orbit", "Stars" },
+		Accent = Color3.fromRGB(255, 220, 255),
 	},
 	{
 		Id = "creator",
@@ -581,7 +742,11 @@ local Slimes: { SlimeDef } = {
 		Size = 2.7,
 		Material = Enum.Material.Neon,
 		Glow = true,
-		Hat = "Crown",
+		Hat = "Halo",
+		Shape = "Tall",
+		Face = "Glow",
+		Extras = { "Wings", "Orbit", "Ring" },
+		Accent = Color3.fromRGB(255, 240, 160),
 	},
 	-- Robux-only: the Royal Pack's exclusive slime.
 	{
@@ -596,6 +761,10 @@ local Slimes: { SlimeDef } = {
 		Glow = true,
 		Hat = "Crown",
 		RobuxOnly = true,
+		Shape = "Tall",
+		Face = "Cool",
+		Extras = { "Cape", "Wings" },
+		Accent = Color3.fromRGB(110, 40, 180),
 	},
 	-- Merge-only Halloween slimes (three Pumpkins / three Ghosts in the cauldron).
 	{
@@ -611,6 +780,9 @@ local Slimes: { SlimeDef } = {
 		Hat = "Pumpkin",
 		Event = "Halloween",
 		MergeOnly = true,
+		Shape = "Chunky",
+		Face = "Jack",
+		Extras = { "Flames" },
 	},
 	{
 		Id = "poltergeist",
@@ -624,6 +796,10 @@ local Slimes: { SlimeDef } = {
 		Glow = true,
 		Event = "Halloween",
 		MergeOnly = true,
+		Shape = "Drop",
+		Face = "Boo",
+		Extras = { "Orbit" },
+		Accent = Color3.fromRGB(120, 255, 200),
 	},
 }
 
@@ -640,7 +816,46 @@ for _, def in Slimes do
 	table.insert(bucket, def)
 end
 
+-- Valid look names (checked by tests/unit).
+local Looks = {
+	Shapes = { Round = true, Tall = true, Flat = true, Chunky = true, Drop = true },
+	Faces = {
+		Happy = true,
+		Cute = true,
+		Angry = true,
+		Sleepy = true,
+		Cyclops = true,
+		Cool = true,
+		Fangs = true,
+		Glow = true,
+		Derp = true,
+		Sparkle = true,
+		Boo = true,
+		Jack = true,
+	},
+	Extras = {
+		Spots = true,
+		Sprinkles = true,
+		Stripes = true,
+		Spikes = true,
+		Drip = true,
+		Wings = true,
+		Tail = true,
+		Cape = true,
+		Ring = true,
+		Orbit = true,
+		Core = true,
+		Flames = true,
+		Snow = true,
+		Sparks = true,
+		Bubbles = true,
+		Stars = true,
+		Smoke = true,
+	},
+}
+
 return {
+	Looks = Looks,
 	List = Slimes,
 	ById = byId,
 	ByRarity = byRarity,

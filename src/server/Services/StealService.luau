@@ -169,6 +169,8 @@ local function humanoidOf(player: Player): Humanoid?
 	return character and character:FindFirstChildOfClass("Humanoid")
 end
 
+local speedBoost = 1
+
 function StealService.WalkSpeed(player: Player): number
 	local boots = PassService.Has(player, "SpeedBoots")
 	local speed = if boots then Economy.WalkSpeedBoots else Economy.WalkSpeed
@@ -180,13 +182,21 @@ function StealService.WalkSpeed(player: Player): number
 			speed *= Economy.BigCarrySpeedFactor
 		end
 	end
-	return speed
+	return speed * speedBoost
 end
 
 local function applySpeed(player: Player)
 	local humanoid = humanoidOf(player)
 	if humanoid then
 		humanoid.WalkSpeed = StealService.WalkSpeed(player)
+	end
+end
+
+-- Server-wide speed multiplier (the Speed Frenzy chaos event).
+function StealService.SetSpeedBoost(multiplier: number)
+	speedBoost = multiplier
+	for _, player in Players:GetPlayers() do
+		applySpeed(player)
 	end
 end
 
