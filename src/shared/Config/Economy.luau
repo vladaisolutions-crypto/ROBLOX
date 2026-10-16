@@ -84,8 +84,10 @@ local Economy = {
 	ThiefSpeedMin = 0.92, -- each thief's speed is scaled by a random amount in this range
 	ThiefSpeedMax = 1.03,
 	ThiefGrabSeconds = 1.5,
-	ThiefBailChance = 0.2, -- spotted before the grab: chance he runs off (the rest rush in faster)
-	ThiefRushMultiplier = 1.3,
+	ThiefRushMultiplier = 1.3, -- spotted before the grab: he rushes in this much faster
+	-- Thieves keep trying until they're bonked (or get away with a slime);
+	-- this only stops one that's been at it this long (a broken path).
+	ThiefPersistSeconds = 240,
 	-- A locked base doesn't stop them: a thief kneels at the gate and picks
 	-- the lock for this long (bonk him first). Re-locking (Instant Lock) while
 	-- he's at it or inside still traps him.

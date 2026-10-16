@@ -108,7 +108,6 @@ type Thief = {
 	Bubble: TextLabel?,
 	Speed: number, -- this thief's speed multiplier
 	LastShove: number,
-	Flee: boolean, -- spotted before the grab and decided to bail
 	Spotted: boolean,
 	LastChased: number,
 	DodgeUntil: number,
@@ -459,9 +458,6 @@ local function walkTo(thief: Thief, target: Vector3, timeout: number, hops: bool
 	local lastPosition, lastCheck, stuck = root.Position, os.clock(), 0
 	local nextHop = os.clock() + rng:NextNumber(1.5, 3)
 	while not thief.Done and os.clock() - started < timeout do
-		if thief.Flee and not hops then
-			return false -- he panicked: the caller runs him off
-		end
 		local flat = Vector3.new(target.X - root.Position.X, 0, target.Z - root.Position.Z)
 		if flat.Magnitude < 2.5 then
 			return true
@@ -655,14 +651,9 @@ end
 -- One thief of a raid: sneak to the gate, grab `slot`, run for the edge.
 -- `lane` spreads the gang out so they don't walk in single file.
 local function visit(owner: Player, plot: WorldService.Plot, slot: number, lane: number)
-	local pedestal = plot.Pedestals[slot]
 	local cf = plot.CFrame
 	local D = World.PlotDepth
-	local pedLocal = cf:PointToObjectSpace(pedestal.Position)
-	local aisleX = if pedLocal.X > 20 then pedLocal.X - 5 else pedLocal.X + 5
 	local gateFront = cf:PointToWorldSpace(Vector3.new(0, 3, D / 2 + 6))
-	local inside = cf:PointToWorldSpace(Vector3.new(aisleX, 3, D / 2 - 10))
-	local grabSpot = cf:PointToWorldSpace(Vector3.new(aisleX, 3, pedLocal.Z))
 	-- He sneaks in from the nearest end of the map, along the belt side.
 	-- Thieves come from (and flee to) random spots all around the map: either
 	-- end, or anywhere along the back edge behind the bases, so a raid never
@@ -704,7 +695,6 @@ local function visit(owner: Player, plot: WorldService.Plot, slot: number, lane:
 		Done = false,
 		Speed = speed,
 		LastShove = 0,
-		Flee = false,
 		Spotted = false,
 		LastChased = 0,
 		DodgeUntil = 0,
@@ -737,14 +727,10 @@ local function visit(owner: Player, plot: WorldService.Plot, slot: number, lane:
 			end
 			local now = os.clock()
 			if not thief.Carry and not thief.Spotted and nearest < 16 then
-				-- Spotted before the grab: some bail, the brave ones rush it.
+				-- Spotted before the grab: he doesn't back off, he rushes it.
 				thief.Spotted = true
 				say(thief, "Spotted")
-				if rng:NextNumber() < Economy.ThiefBailChance then
-					thief.Flee = true
-				else
-					humanoid.WalkSpeed = Economy.ThiefWalkSpeed * thief.Speed * Economy.ThiefRushMultiplier
-				end
+				humanoid.WalkSpeed = Economy.ThiefWalkSpeed * thief.Speed * Economy.ThiefRushMultiplier
 			elseif thief.Carry and nearestRoot and nearest < 14 and now - thief.LastChased > 4 then
 				-- Chased with the slime: shout, sprint and juke sideways.
 				thief.LastChased = now
@@ -764,36 +750,12 @@ local function visit(owner: Player, plot: WorldService.Plot, slot: number, lane:
 		end
 	end)
 
-	-- Bail out empty-handed: back out of the base and off the map.
-	local function flee()
-		thief.Flee = false
-		humanoid.WalkSpeed = Economy.ThiefCarrySpeed * thief.Speed
-		if cf:PointToObjectSpace(root.Position).Z < D / 2 then
-			walkTo(thief, gateFront, 15, true)
-		end
-		if not thief.Done then
-			walkTo(thief, escape, 40, true)
-		end
-		if not thief.Done then
-			finish(thief, "Fled")
-		end
-	end
-
-	-- To the gate along the lane, then the gate itself.
-	if not walkTo(thief, Vector3.new(gateFront.X, 3, laneZ), 40) or not walkTo(thief, gateFront, 15) then
-		if thief.Flee then
-			flee()
-		elseif not thief.Done then
-			finish(thief, "Cancelled")
-		end
-		return
-	end
 	-- Locked out? He picks the lock at the gate. Bonk him before he's in!
 	local function pickLock(): boolean
 		say(thief, "Locked")
 		humanoid:MoveTo(root.Position)
 		task.wait(1)
-		if thief.Done or thief.Flee then
+		if thief.Done then
 			return false
 		end
 		say(thief, "Pick")
@@ -829,7 +791,7 @@ local function visit(owner: Player, plot: WorldService.Plot, slot: number, lane:
 
 		local started, nextClick = os.clock(), 0
 		while os.clock() - started < Economy.ThiefPickSeconds and PlotService.IsLocked(owner) do
-			if thief.Done or thief.Flee then
+			if thief.Done then
 				gui:Destroy()
 				click:Destroy()
 				return false
@@ -859,121 +821,168 @@ local function visit(owner: Player, plot: WorldService.Plot, slot: number, lane:
 		return true
 	end
 
-	if PlotService.IsLocked(owner) and not pickLock() then
-		if thief.Flee then
-			flee()
-		elseif not thief.Done then
-			finish(thief, "Cancelled")
-		end
-		return
-	end
-	-- Stop and scout before going in: look left, look right.
-	humanoid:MoveTo(root.Position)
-	say(thief, "Scout")
-	for _, turn in { 50, -100, 50 } do
-		task.wait(rng:NextNumber(0.35, 0.6))
-		if thief.Done or thief.Flee then
-			break
-		end
-		model:PivotTo(model:GetPivot() * CFrame.Angles(0, math.rad(turn), 0))
-	end
-	if thief.Flee then
-		flee()
-		return
-	end
-	say(thief, "Sneak")
-	if not walkTo(thief, inside, 12) or not walkTo(thief, grabSpot, 12) then
-		if thief.Flee then
-			flee()
-		elseif not thief.Done then
-			finish(thief, if PlotService.IsLocked(owner) then "Locked" else "Cancelled")
-		end
-		return
+	-- Where to stand to grab the slime on `forSlot`.
+	local function spotsFor(forSlot: number): (Vector3, Vector3)
+		local local_ = cf:PointToObjectSpace(plot.Pedestals[forSlot].Position)
+		local aisle = if local_.X > 20 then local_.X - 5 else local_.X + 5
+		return cf:PointToWorldSpace(Vector3.new(aisle, 3, D / 2 - 10)),
+			cf:PointToWorldSpace(Vector3.new(aisle, 3, local_.Z))
 	end
 
-	-- Grab it. If someone beat him to it, he picks another slime instead.
-	local slotData = EconomyService.GetSlot(owner, slot)
-	if not slotData or StealService.IsSlotCarried(owner, slot) then
+	-- A slime that's still there and nobody is carrying: his own if he can.
+	local function target(): boolean
+		local current = EconomyService.GetSlot(owner, slot)
+		if current and not StealService.IsSlotCarried(owner, slot) then
+			return true
+		end
 		local taken: { [number]: boolean } = {}
-		for _, other in gang do
-			taken[other.Slot] = true
+		for _, other in thieves[owner] or {} :: { Thief } do
+			if other ~= thief then
+				taken[other.Slot] = true
+			end
 		end
 		local other = pickSlot(owner, taken)
 		if other then
 			slot = other
 			thief.Slot = other
-			local otherLocal = cf:PointToObjectSpace(plot.Pedestals[other].Position)
-			local otherAisle = if otherLocal.X > 20 then otherLocal.X - 5 else otherLocal.X + 5
-			say(thief, "Scout")
-			walkTo(thief, cf:PointToWorldSpace(Vector3.new(otherAisle, 3, D / 2 - 10)), 10)
-			walkTo(thief, cf:PointToWorldSpace(Vector3.new(otherAisle, 3, otherLocal.Z)), 10)
-			slotData = EconomyService.GetSlot(owner, slot)
+			return true
 		end
-		if thief.Done then
-			return
-		end
-		if thief.Flee then
-			flee()
-			return
-		end
-		if not slotData or StealService.IsSlotCarried(owner, slot) then
+		return false
+	end
+
+	-- He doesn't give up. A blocked path, a lock, a slime someone else took:
+	-- he regroups and goes again, until he's bonked, trapped by the lock or
+	-- gets away with a slime. (A long safety cap stops one looping forever.)
+	local deadline = os.clock() + Economy.ThiefPersistSeconds
+	local attempt = 0
+	local function regroup()
+		humanoid:MoveTo(root.Position)
+		say(thief, "Scout")
+		task.wait(rng:NextNumber(0.8, 1.6))
+	end
+	while not thief.Done do
+		attempt += 1
+		if os.clock() > deadline or not owner.Parent then
 			finish(thief, "Cancelled")
 			return
 		end
-	end
-	humanoid:MoveTo(root.Position)
-	task.wait(Economy.ThiefGrabSeconds)
-	if thief.Done then
-		return
-	end
-	slotData = EconomyService.GetSlot(owner, slot)
-	if not slotData then
-		finish(thief, "Cancelled")
-		return
-	end
-	local carry = SlimeBuilder.Build(slotData.Id, slotData.Mutation, { Tier = slotData.Tier, Age = slotData.Age })
-	local carryRoot = carry.PrimaryPart :: BasePart
-	local height = SlimeBuilder.HalfHeight(slotData.Id, SlimeInfo.Scale(slotData.Tier, slotData.Age))
-	carry:SetAttribute("Carried", true)
-	carry:PivotTo(root.CFrame * CFrame.new(0, 3.5 + height, 0))
-	carryRoot.Anchored = false
-	local weld = Instance.new("WeldConstraint")
-	weld.Part0, weld.Part1 = root, carryRoot
-	weld.Parent = carryRoot
-	for _, part in carry:GetDescendants() do
-		if part:IsA("BasePart") then
-			part.Massless = true
-			part.CanCollide = false
+		if not target() then
+			-- Nothing to take right now: lurk by the gate and wait for one.
+			humanoid:MoveTo(gateFront)
+			task.wait(2)
+			continue
 		end
-	end
-	carry.Parent = workspace
-	thief.Carry = carry
-	PlotService.SetCarried(owner, slot, true)
-	local name = SlimeInfo.DisplayName(slotData.Id, slotData.Mutation, slotData.Tier)
-	say(thief, "Grab")
-	NetService.Notify(owner, "🚨 The thief grabbed your " .. name .. "! BONK HIM!", "Bad")
-	NetService.FxTo(owner, "Thief", { Position = root.Position })
+		local insideSpot, grabSpot = spotsFor(slot)
+		local outside = cf:PointToObjectSpace(root.Position).Z > D / 2
+		if outside then
+			-- To the gate along the lane, then the gate itself.
+			if attempt == 1 and not walkTo(thief, Vector3.new(gateFront.X, 3, laneZ), 40) then
+				if not thief.Done then
+					regroup()
+				end
+				continue
+			end
+			if not walkTo(thief, gateFront, 15) then
+				if not thief.Done then
+					regroup()
+				end
+				continue
+			end
+			if PlotService.IsLocked(owner) and not pickLock() then
+				return
+			end
+			if attempt == 1 then
+				-- Stop and scout before going in: look left, look right.
+				humanoid:MoveTo(root.Position)
+				say(thief, "Scout")
+				for _, turn in { 50, -100, 50 } do
+					task.wait(rng:NextNumber(0.35, 0.6))
+					if thief.Done then
+						return
+					end
+					model:PivotTo(model:GetPivot() * CFrame.Angles(0, math.rad(turn), 0))
+				end
+			end
+			say(thief, "Sneak")
+			if not walkTo(thief, insideSpot, 12) then
+				if not thief.Done then
+					regroup()
+				end
+				continue
+			end
+		end
+		if not walkTo(thief, grabSpot, 12) then
+			if not thief.Done then
+				regroup()
+			end
+			continue
+		end
 
-	-- Run for it.
-	humanoid.WalkSpeed = Economy.ThiefCarrySpeed * thief.Speed
-	-- (Locking now traps him: see the Locked handler in Init.)
-	task.spawn(function()
-		while not thief.Done do
-			task.wait(Random.new():NextNumber(2.5, 4))
-			if not thief.Done then
-				say(thief, "Run")
-			end
+		-- Grab it (if nobody beat him to it).
+		if not EconomyService.GetSlot(owner, slot) or StealService.IsSlotCarried(owner, slot) then
+			continue
 		end
-	end)
-	for _, point in { inside, gateFront, Vector3.new(gateFront.X, 3, laneZ), escape } do
-		if not walkTo(thief, point, 40, true) then
-			if not thief.Done then
-				finish(thief, if PlotService.IsLocked(owner) then "Locked" else "Cancelled")
-			end
+		humanoid:MoveTo(root.Position)
+		task.wait(Economy.ThiefGrabSeconds)
+		if thief.Done then
 			return
 		end
+		local slotData = EconomyService.GetSlot(owner, slot)
+		if not slotData or StealService.IsSlotCarried(owner, slot) then
+			continue
+		end
+		local carry = SlimeBuilder.Build(slotData.Id, slotData.Mutation, { Tier = slotData.Tier, Age = slotData.Age })
+		local carryRoot = carry.PrimaryPart :: BasePart
+		local height = SlimeBuilder.HalfHeight(slotData.Id, SlimeInfo.Scale(slotData.Tier, slotData.Age))
+		carry:SetAttribute("Carried", true)
+		carry:PivotTo(root.CFrame * CFrame.new(0, 3.5 + height, 0))
+		carryRoot.Anchored = false
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0, weld.Part1 = root, carryRoot
+		weld.Parent = carryRoot
+		for _, part in carry:GetDescendants() do
+			if part:IsA("BasePart") then
+				part.Massless = true
+				part.CanCollide = false
+			end
+		end
+		carry.Parent = workspace
+		thief.Carry = carry
+		PlotService.SetCarried(owner, slot, true)
+		local name = SlimeInfo.DisplayName(slotData.Id, slotData.Mutation, slotData.Tier)
+		say(thief, "Grab")
+		NetService.Notify(owner, "🚨 The thief grabbed your " .. name .. "! BONK HIM!", "Bad")
+		NetService.FxTo(owner, "Thief", { Position = root.Position })
+
+		-- Run for it.
+		humanoid.WalkSpeed = Economy.ThiefCarrySpeed * thief.Speed
+		-- (Locking now traps him: see the Locked handler in Init.)
+		task.spawn(function()
+			while not thief.Done do
+				task.wait(Random.new():NextNumber(2.5, 4))
+				if not thief.Done then
+					say(thief, "Run")
+				end
+			end
+		end)
+		for _, point in { insideSpot, gateFront, Vector3.new(gateFront.X, 3, laneZ) } do
+			if not walkTo(thief, point, 40, true) and thief.Done then
+				return
+			end
+		end
+		-- Off the edge of the map: if he gets stuck he keeps trying.
+		while not thief.Done do
+			if walkTo(thief, escape, 40, true) then
+				finish(thief, "Escaped")
+				return
+			end
+			if os.clock() > deadline then
+				finish(thief, "Cancelled")
+				return
+			end
+		end
+		return
 	end
-	finish(thief, "Escaped")
 end
 
 -- A raid: a gang of thieves, each after a different slime, a few seconds apart.
