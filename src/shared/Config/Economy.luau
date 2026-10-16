@@ -107,6 +107,18 @@ local Economy = {
 	ThiefDodgeRange = 11,
 	ThiefDodgeCooldown = 1.6,
 	ThiefSprintMultiplier = 1.25,
+	-- The bully: now and then an NPC with a bat picks a random player, chases
+	-- them and tries to bonk them. Bonk him back (ThiefHits) for the reward.
+	BullyFirstDelay = 120,
+	BullyMinInterval = 90, -- seconds between bullies on a server (random in this range)
+	BullyMaxInterval = 200,
+	BullySpeed = 20, -- players walk 18: turn and fight, or get Speed Boots
+	BullyReach = 6,
+	BullySwingCooldown = 1.6,
+	BullyForce = 48,
+	BullyStun = 1.5,
+	BullyMaxHits = 3, -- he leaves after landing this many
+	BullySeconds = 35, -- or after this long
 	ThiefRewardMinutes = 1, -- bonk reward: minutes of the owner's base income
 	ThiefRewardMinimum = 150,
 

@@ -708,7 +708,9 @@ local function swingAnimation(character: Model)
 end
 
 local function onSwing(data: { [string]: any })
-	local character = characterOf(data.Attacker)
+	-- A player (Attacker = UserId) or an NPC like the bully (Model).
+	local npc = data.Model
+	local character = if typeof(npc) == "Instance" and npc:IsA("Model") then npc else characterOf(data.Attacker)
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	if not character or not root or not root:IsA("BasePart") then
 		return

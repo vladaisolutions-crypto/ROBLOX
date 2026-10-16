@@ -447,6 +447,11 @@ local function makeBat(golden: boolean): Tool
 	return tool
 end
 
+-- Bats for NPCs too (the bully in ThiefService).
+function StealService.MakeBat(golden: boolean): Tool
+	return makeBat(golden)
+end
+
 local function giveBat(player: Player)
 	local backpack = player:FindFirstChildOfClass("Backpack") or player:WaitForChild("Backpack", 5)
 	if not backpack then

@@ -71,6 +71,25 @@ local LINES: { [string]: { { Text: string, Sound: string } } } = {
 		{ Text = "Ow! Now I'm MAD! 😡", Sound = "" },
 		{ Text = "That tickled! 😏", Sound = "" },
 	},
+	BullyArrive = {
+		{ Text = "Hey! You! Yeah, YOU! 😠", Sound = "" },
+		{ Text = "Time for your bonking! 🏏", Sound = "" },
+		{ Text = "Nice slimes... shame if someone BONKED you 😈", Sound = "" },
+	},
+	BullySwing = {
+		{ Text = "BONK! 🏏", Sound = "" },
+		{ Text = "Take THIS!", Sound = "" },
+		{ Text = "Hold still!", Sound = "" },
+	},
+	BullyLaugh = {
+		{ Text = "HAHAHA! Gotcha! 😂", Sound = "" },
+		{ Text = "Bonked ya! 🤣", Sound = "" },
+		{ Text = "Too slow! 😜", Sound = "" },
+	},
+	BullyLeave = {
+		{ Text = "Hmph. See you around... 😒", Sound = "" },
+		{ Text = "That was fun! Bye! 👋", Sound = "" },
+	},
 	Bonked = {
 		{ Text = "OUCH! 😵", Sound = "ThiefBonked1" },
 		{ Text = "Not the bat! 😭", Sound = "ThiefBonked2" },
@@ -121,6 +140,7 @@ type Thief = {
 	Hits: number, -- bat hits left before he goes down
 	HitAt: number,
 	Hearts: TextLabel?,
+	Bully: boolean?, -- the bat-swinging bully, not a raid thief
 }
 
 -- Lock picking: metal clicks while he works (bundled with the Roblox client).
@@ -141,6 +161,7 @@ end
 
 -- The thieves raiding each player's base right now (a raid is a small gang).
 local thieves: { [Player]: { Thief } } = {}
+local bullies: { Thief } = {}
 local checkRaidOver: () -> ()
 
 -- The server-wide raid: when the next one starts, and the tally of the
@@ -624,8 +645,12 @@ local function finish(thief: Thief, outcome: string, by: Player?)
 		ThiefService.Bonked:Fire(hero)
 		EconomyService.AddCash(hero, reward, "Reward", "ThiefCaught")
 		NetService.FxTo(hero, "ThiefCaught", { Amount = reward })
-		NetService.Notify(hero, "🦸 You bonked the thief! +" .. Format.Cash(reward), "Money")
-		if hero ~= owner and owner.Parent then
+		NetService.Notify(
+			hero,
+			"🦸 You bonked the " .. (if thief.Bully then "bully" else "thief") .. "! +" .. Format.Cash(reward),
+			"Money"
+		)
+		if hero ~= owner and owner.Parent and not thief.Bully then
 			NetService.Notify(owner, "🦸 " .. hero.DisplayName .. " bonked the thief! Your slime is safe.", "Good")
 		end
 		TelemetryService.Custom(owner, "ThiefBonked", reward)
@@ -1190,6 +1215,9 @@ local function allThieves(): { Thief }
 			table.insert(everyone, thief)
 		end
 	end
+	for _, bully in bullies do
+		table.insert(everyone, bully)
+	end
 	return everyone
 end
 
@@ -1336,7 +1364,178 @@ function ThiefService.Init()
 	end)
 end
 
+local function rootOfPlayer(player: Player): BasePart?
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if humanoid and humanoid.Health > 0 and root and root:IsA("BasePart") then
+		return root
+	end
+	return nil
+end
+
+-- A spot about 40 studs from `near`, on open ground outside every base.
+local function bullySpawn(near: Vector3, rng: Random): Vector3?
+	local halfX, halfZ = World.MapSizeX / 2 - 15, World.MapSizeZ / 2 - 15
+	for _ = 1, 20 do
+		local angle = rng:NextNumber(0, math.pi * 2)
+		local spot = near + Vector3.new(math.cos(angle), 0, math.sin(angle)) * rng:NextNumber(32, 48)
+		spot = Vector3.new(math.clamp(spot.X, -halfX, halfX), 3, math.clamp(spot.Z, -halfZ, halfZ))
+		local inBase = false
+		for _, plot in WorldService.Plots do
+			if WorldService.PlotContains(plot, spot) then
+				inBase = true
+				break
+			end
+		end
+		if not inBase then
+			return spot
+		end
+	end
+	return nil
+end
+
+-- The bully: walks up to `target` with a bat, swings until he lands a few
+-- hits or runs out of time, then wanders off. Bonk him first for a reward.
+local function bully(target: Player)
+	local targetRoot = rootOfPlayer(target)
+	if not targetRoot then
+		return
+	end
+	local rng = Random.new()
+	local start = bullySpawn(targetRoot.Position, rng)
+	if not start then
+		return
+	end
+	local model, humanoid, root = buildThief(rng)
+	local mask = model:FindFirstChild("Mask")
+	if mask then
+		mask:Destroy() -- no robber's mask: he wants you to see him coming
+	end
+	model.Name = "Bully"
+	model:PivotTo(CFrame.lookAt(start, Vector3.new(targetRoot.Position.X, 3, targetRoot.Position.Z)))
+	local bat = StealService.MakeBat(false)
+	bat.Parent = model -- a Tool parented to a character is held in the right hand
+	model.Parent = workspace
+	root:SetNetworkOwner(nil)
+	humanoid.WalkSpeed = Economy.BullySpeed
+	local thief: Thief = {
+		Owner = target,
+		Model = model,
+		Humanoid = humanoid,
+		Root = root,
+		Slot = 0,
+		Carry = nil,
+		Done = false,
+		Speed = 1,
+		LastShove = 0,
+		Spotted = true,
+		LastChased = 0,
+		DodgeUntil = 0,
+		DodgeDir = Vector3.zero,
+		Picked = false,
+		Hits = Economy.ThiefHits,
+		HitAt = 0,
+		Bully = true,
+	}
+	table.insert(bullies, thief)
+	say(thief, "BullyArrive")
+	NetService.FxTo(target, "Thief", {})
+	NetService.Notify(target, "😠 A BULLY with a bat is coming for YOU! Bonk him first!", "Bad")
+
+	local deadline = os.clock() + Economy.BullySeconds
+	local landed, lastSwing = 0, 0
+	local lastPosition, lastCheck = root.Position, os.clock()
+	while not thief.Done and os.clock() < deadline and landed < Economy.BullyMaxHits and target.Parent do
+		local tr = rootOfPlayer(target)
+		if not tr then
+			task.wait(0.5)
+			continue
+		end
+		local offset = Vector3.new(tr.Position.X - root.Position.X, 0, tr.Position.Z - root.Position.Z)
+		if offset.Magnitude > 150 then
+			break
+		end
+		if offset.Magnitude < Economy.BullyReach and os.clock() - lastSwing > Economy.BullySwingCooldown then
+			lastSwing = os.clock()
+			humanoid:MoveTo(root.Position)
+			root.CFrame = CFrame.lookAt(root.Position, root.Position + offset.Unit)
+			if rng:NextNumber() < 0.5 then
+				say(thief, "BullySwing")
+			end
+			NetService.Fx("Swing", { Model = model })
+			task.wait(Economy.BonkHitDelay + 0.08)
+			tr = rootOfPlayer(target)
+			if thief.Done or not tr then
+				continue
+			end
+			local now = Vector3.new(tr.Position.X - root.Position.X, 0, tr.Position.Z - root.Position.Z)
+			if now.Magnitude < Economy.BullyReach + 1.5 and now.Magnitude > 0.1 then
+				landed += 1
+				StealService.Knock(
+					target,
+					now.Unit * Economy.BullyForce + Vector3.new(0, Economy.BullyForce * Economy.BonkLift, 0),
+					Economy.BullyStun
+				)
+				NetService.Fx("Bonk", {
+					Position = tr.Position + Vector3.new(0, 2, 0),
+					Victim = target.UserId,
+					Dropped = false,
+					Golden = false,
+					Stun = Economy.BullyStun,
+				})
+				task.delay(0.6, function()
+					if not thief.Done then
+						say(thief, "BullyLaugh")
+					end
+				end)
+			end
+		else
+			humanoid:MoveTo(tr.Position - offset.Unit * 3)
+			-- Unstick: jump if he hasn't moved for a second.
+			if os.clock() - lastCheck > 1 then
+				if (root.Position - lastPosition).Magnitude < 1.5 then
+					humanoid.Jump = true
+				end
+				lastPosition, lastCheck = root.Position, os.clock()
+			end
+			task.wait(0.15)
+		end
+	end
+
+	if not thief.Done then
+		-- Bored now: wander off and vanish.
+		say(thief, "BullyLeave")
+		local away = root.CFrame.LookVector * -40
+		humanoid:MoveTo(root.Position + Vector3.new(away.X, 0, away.Z))
+		task.wait(3)
+		finish(thief, "Cancelled")
+	end
+	local index = table.find(bullies, thief)
+	if index then
+		table.remove(bullies, index)
+	end
+end
+
 function ThiefService.Start()
+	task.spawn(function()
+		task.wait(Economy.BullyFirstDelay)
+		local rng = Random.new()
+		while true do
+			if not raidActive and #bullies == 0 then
+				local players = {}
+				for _, player in Players:GetPlayers() do
+					if rootOfPlayer(player) then
+						table.insert(players, player)
+					end
+				end
+				if #players > 0 then
+					task.spawn(bully, players[rng:NextInteger(1, #players)])
+				end
+			end
+			task.wait(rng:NextNumber(Economy.BullyMinInterval, Economy.BullyMaxInterval))
+		end
+	end)
 	task.spawn(function()
 		while true do
 			task.wait(2)
