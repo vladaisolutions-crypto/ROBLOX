@@ -18,6 +18,7 @@ export type PlayerData = {
 	Cash: number,
 	TotalEarned: number,
 	Rebirths: number,
+	BoughtSlots: number,
 	Slots: { SlotData },
 	Index: { [string]: { [string]: boolean } }, -- slimeId -> mutation ("Normal" for none) -> true
 	Daily: { LastDay: number, Streak: number },
@@ -48,6 +49,7 @@ function DataTemplate.New(): PlayerData
 		Cash = Economy.StartingCash,
 		TotalEarned = 0,
 		Rebirths = 0,
+		BoughtSlots = 0, -- base expansions bought with cash (kept through rebirths)
 		Slots = {},
 		Index = {},
 		Daily = { LastDay = 0, Streak = 0 },

@@ -396,6 +396,18 @@ function PlotService.Lock(player: Player, force: boolean?): boolean
 	return true
 end
 
+-- The expand pad shows the owner's next price.
+local function updateExpandLabel(player: Player)
+	local plot = plotOf[player]
+	local data = DataService.Get(player)
+	if not plot or not data then
+		return
+	end
+	plot.ExpandLabel.Text = if data.BoughtSlots >= Economy.BuySlotsMax
+		then "🏰 MAX SIZE"
+		else "🏗️ +1 SLOT: " .. Format.Cash(Economy.SlotPrice(data.BoughtSlots))
+end
+
 local function assign(player: Player, _data: PlayerData)
 	local free: Plot? = nil
 	for _, plot in WorldService.Plots do
@@ -416,6 +428,7 @@ local function assign(player: Player, _data: PlayerData)
 	setBarrier(plot, false)
 	PlotService.Render(player)
 	pushLockState(player)
+	updateExpandLabel(player)
 	PlotService.PlotAssigned:Fire(player, plot)
 end
 
@@ -435,6 +448,7 @@ local function release(player: Player)
 		plot.StatusLabel.Text = ""
 		plot.Model:SetAttribute("OwnerUserId", nil)
 		setBarrier(plot, false)
+		plot.ExpandLabel.Text = "🏗️ EXPAND BASE"
 		for slot, label in plot.PadLabels do
 			label.Text = ""
 			plot.Pedestals[slot].Transparency = 0
@@ -475,6 +489,21 @@ local function connectPads(plot: Plot)
 			end
 		end)
 	end
+	-- Expand pad: the owner buys one more slot with cash.
+	local expand = Instance.new("ProximityPrompt")
+	expand.Name = "ExpandPrompt"
+	expand.ObjectText = "Expand Base"
+	expand.ActionText = "Buy a slot"
+	expand.HoldDuration = 0.3
+	expand.MaxActivationDistance = 10
+	expand.RequiresLineOfSight = false
+	expand.Parent = plot.ExpandPad
+	CollectionService:AddTag(expand, "ExpandPrompt")
+	expand.Triggered:Connect(function(player: Player)
+		if ownerOf[plot] == player then
+			EconomyService.BuySlot(player)
+		end
+	end)
 	plot.LockPad.CanTouch = true
 	plot.LockPad.Touched:Connect(function(hit: BasePart)
 		local player = playerFromHit(hit)
@@ -523,6 +552,7 @@ function PlotService.Init()
 	Players.PlayerRemoving:Connect(release)
 	EconomyService.SlotsChanged:Connect(function(player: Player)
 		PlotService.Render(player)
+		updateExpandLabel(player)
 	end)
 	EconomyService.Collected:Connect(function(player: Player)
 		TelemetryService.Onboard(player, TelemetryService.Onboarding.CollectedCash)

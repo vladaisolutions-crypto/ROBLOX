@@ -33,25 +33,27 @@ local function updatePrompt(prompt: Instance)
 		prompt.Enabled = not mine and not plotLocked(if type(plotIndex) == "number" then plotIndex else nil)
 	elseif CollectionService:HasTag(prompt, "SellPrompt") then
 		prompt.Enabled = mine
+	elseif CollectionService:HasTag(prompt, "ExpandPrompt") then
+		prompt.Enabled = mine
 	elseif CollectionService:HasTag(prompt, "MergePrompt") then
 		prompt.Enabled = mine and prompt:GetAttribute("CanMerge") == true
 	end
 end
 
 local function watchPrompts()
-	for _, tag in { "StealPrompt", "SellPrompt", "MergePrompt" } do
-		for _, prompt in CollectionService:GetTagged(tag) do
-			updatePrompt(prompt)
-			prompt:GetAttributeChangedSignal("CanMerge"):Connect(function()
+	local function watch(prompt: Instance)
+		updatePrompt(prompt)
+		for _, attribute in { "CanMerge", "OwnerUserId" } do
+			prompt:GetAttributeChangedSignal(attribute):Connect(function()
 				updatePrompt(prompt)
 			end)
 		end
-		CollectionService:GetInstanceAddedSignal(tag):Connect(function(prompt: Instance)
-			updatePrompt(prompt)
-			prompt:GetAttributeChangedSignal("CanMerge"):Connect(function()
-				updatePrompt(prompt)
-			end)
-		end)
+	end
+	for _, tag in { "StealPrompt", "SellPrompt", "MergePrompt", "ExpandPrompt" } do
+		for _, prompt in CollectionService:GetTagged(tag) do
+			watch(prompt)
+		end
+		CollectionService:GetInstanceAddedSignal(tag):Connect(watch)
 	end
 	-- Plot lock changes flip steal prompts on/off.
 	task.spawn(function()

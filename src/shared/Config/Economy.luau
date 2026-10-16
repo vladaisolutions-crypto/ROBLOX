@@ -5,16 +5,21 @@ local Economy = {
 	StartingCash = 100,
 
 	-- Base slots
-	BaseSlots = 8,
+	BaseSlots = 10,
 	SlotsPerRebirth = 2,
 	MaxRebirthSlots = 10,
 	ExtraSlotsPass = 6, -- "+6 Slots" game pass
+	-- Expand your base with cash (the pad by the entrance): each extra slot
+	-- costs more than the last. Kept through rebirths.
+	BuySlotsMax = 12,
+	BuySlotBasePrice = 5000,
+	BuySlotGrowth = 2.2,
 
 	-- Selling a slime refunds this fraction of its price.
 	SellRefund = 0.5,
 
 	-- Rebirth: costs all cash (minimum shown below), keeps slimes.
-	RebirthBaseCost = 2e6,
+	RebirthBaseCost = 2.5e6,
 	RebirthCostGrowth = 8,
 	RebirthMultiplier = 0.5, -- +50% income per rebirth
 
@@ -125,13 +130,19 @@ function Economy.RebirthCost(rebirths: number): number
 	return Economy.RebirthBaseCost * Economy.RebirthCostGrowth ^ rebirths
 end
 
-function Economy.MaxSlots(rebirths: number, hasExtraSlots: boolean): number
+function Economy.MaxSlots(rebirths: number, hasExtraSlots: boolean, bought: number?): number
 	local fromRebirths = math.min(rebirths * Economy.SlotsPerRebirth, Economy.MaxRebirthSlots)
-	return Economy.BaseSlots + fromRebirths + (if hasExtraSlots then Economy.ExtraSlotsPass else 0)
+	local fromCash = math.clamp(bought or 0, 0, Economy.BuySlotsMax)
+	return Economy.BaseSlots + fromRebirths + (if hasExtraSlots then Economy.ExtraSlotsPass else 0) + fromCash
+end
+
+-- Cash price of the next base expansion, after `bought` of them.
+function Economy.SlotPrice(bought: number): number
+	return math.floor(Economy.BuySlotBasePrice * Economy.BuySlotGrowth ^ bought / 100 + 0.5) * 100
 end
 
 -- The absolute maximum number of slots any player can have. Plots are built
 -- with this many pedestals.
-Economy.AbsoluteMaxSlots = Economy.BaseSlots + Economy.MaxRebirthSlots + Economy.ExtraSlotsPass
+Economy.AbsoluteMaxSlots = Economy.BaseSlots + Economy.MaxRebirthSlots + Economy.ExtraSlotsPass + Economy.BuySlotsMax
 
 return Economy

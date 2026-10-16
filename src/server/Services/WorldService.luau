@@ -15,6 +15,8 @@ export type Plot = {
 	Model: Model,
 	Barrier: BasePart,
 	LockPad: BasePart,
+	ExpandPad: BasePart,
+	ExpandLabel: TextLabel,
 	OwnerLabel: TextLabel,
 	StatusLabel: TextLabel,
 	SpawnCFrame: CFrame,
@@ -383,8 +385,20 @@ local function buildPlot(index: number, cframe: CFrame): Plot
 	local lockGui = billboard(lockPad, Vector3.new(0, 3, 0), UDim2.fromOffset(140, 50), 60)
 	label(lockGui, "🔒 LOCK BASE", Color3.new(1, 1, 1), UDim2.fromScale(1, 1))
 
+	-- Expand pad: buy one more slot with cash (prompt wired up in PlotService).
+	local expandPad = part({
+		Name = "ExpandPad",
+		Size = Vector3.new(4.5, 0.3, 4.5),
+		CFrame = at(-W / 2 + 6, floorY + 0.15, D / 2 - 11.5),
+		Color = Color3.fromRGB(80, 170, 255),
+		Material = Enum.Material.Neon,
+		CanCollide = false,
+		Parent = model,
+	})
+	local expandGui = billboard(expandPad, Vector3.new(0, 3, 0), UDim2.fromOffset(150, 50), 50)
+	local expandLabel = label(expandGui, "🏗️ EXPAND BASE", Color3.new(1, 1, 1), UDim2.fromScale(1, 1))
+
 	-- Pedestals: first row nearest the entrance so new players see slimes up close.
-	local rowZ = { 15, 2, -11, -24 }
 	local pedestals: { BasePart } = {}
 	local pads: { BasePart } = {}
 	local padLabels: { TextLabel } = {}
@@ -392,7 +406,7 @@ local function buildPlot(index: number, cframe: CFrame): Plot
 		local column = (slot - 1) % World.PedestalColumns
 		local row = (slot - 1) // World.PedestalColumns + 1
 		local x = (column - (World.PedestalColumns - 1) / 2) * World.PedestalSpacingX
-		local z = rowZ[row]
+		local z = D / 2 - 21 - (row - 1) * World.PedestalSpacingZ
 		local pedestal = part({
 			Name = "Pedestal" .. slot,
 			Size = Vector3.new(1.6, 6, 6),
@@ -453,6 +467,8 @@ local function buildPlot(index: number, cframe: CFrame): Plot
 		Model = model,
 		Barrier = barrier,
 		LockPad = lockPad,
+		ExpandPad = expandPad,
+		ExpandLabel = expandLabel,
 		OwnerLabel = ownerLabel,
 		StatusLabel = statusLabel,
 		SpawnCFrame = CFrame.lookAt(spawnPosition, spawnPosition + facing),

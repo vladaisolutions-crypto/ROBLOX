@@ -2,7 +2,9 @@
 -- Map layout. Everything is generated from these numbers at server start.
 
 local PLOT_X = { -135, -45, 45, 135 }
-local PLOT_Z = 62
+-- Plot centres sit this far from the belt; bases are deep so they hold up to
+-- 7 rows of pedestals (the entrance stays the same distance from the belt).
+local PLOT_Z = 80
 
 local plotCFrames: { CFrame } = {}
 -- North row faces +Z (towards the belt), south row is rotated to face -Z.
@@ -16,12 +18,13 @@ end
 return {
 	PlotCFrames = plotCFrames,
 	PlotWidth = 64, -- local X
-	PlotDepth = 72, -- local Z, entrance at +Z/2
+	PlotDepth = 108, -- local Z, entrance at +Z/2
 	FloorY = 1,
 	WallHeight = 5, -- fence collision: low enough to jump (default jump ~7.2 studs); the gate lock barrier stays BarrierHeight
 	BarrierHeight = 18,
 
 	PedestalColumns = 6,
+	PedestalRows = 7,
 	PedestalSpacingX = 10,
 	PedestalSpacingZ = 13,
 
@@ -34,5 +37,5 @@ return {
 	MaxBeltSlimes = 30,
 
 	MapSizeX = 520,
-	MapSizeZ = 320,
+	MapSizeZ = 360,
 }

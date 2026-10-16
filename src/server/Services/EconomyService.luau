@@ -97,7 +97,7 @@ function EconomyService.MaxSlots(player: Player): number
 	if not data then
 		return Economy.BaseSlots
 	end
-	return Economy.MaxSlots(data.Rebirths, PassService.Has(player, "ExtraSlots"))
+	return Economy.MaxSlots(data.Rebirths, PassService.Has(player, "ExtraSlots"), data.BoughtSlots)
 end
 
 function EconomyService.FreeSlot(player: Player): number?
@@ -143,6 +143,8 @@ function EconomyService.PushState(player: Player)
 		Rebirths = data.Rebirths,
 		RebirthCost = Economy.RebirthCost(data.Rebirths),
 		MaxSlots = EconomyService.MaxSlots(player),
+		BoughtSlots = data.BoughtSlots,
+		NextSlotPrice = if data.BoughtSlots < Economy.BuySlotsMax then Economy.SlotPrice(data.BoughtSlots) else 0,
 		UsedSlots = #data.Slots,
 		Passes = PassService.Owned(player),
 		IndexCount = indexCount(data),
@@ -181,6 +183,32 @@ function EconomyService.SpendCash(player: Player, amount: number, transaction: s
 	end
 	data.Cash -= amount
 	TelemetryService.Sink(player, amount, data.Cash, transaction, sku)
+	return true
+end
+
+-- Expand the base by one slot for cash. Returns whether it worked.
+function EconomyService.BuySlot(player: Player): boolean
+	local data = DataService.Get(player)
+	if not data then
+		return false
+	end
+	if data.BoughtSlots >= Economy.BuySlotsMax then
+		NetService.Notify(player, "Your base is as big as cash can make it! 🏰", "Info")
+		return false
+	end
+	local price = Economy.SlotPrice(data.BoughtSlots)
+	if not EconomyService.SpendCash(player, price, "BaseExpansion", "Slot" .. (data.BoughtSlots + 1)) then
+		NetService.Notify(player, "You need " .. Format.Cash(price) .. " to expand your base!", "Bad")
+		return false
+	end
+	data.BoughtSlots += 1
+	NetService.Notify(
+		player,
+		"🏗️ Base expanded! You now have " .. EconomyService.MaxSlots(player) .. " slots.",
+		"Good"
+	)
+	EconomyService.SlotsChanged:Fire(player)
+	EconomyService.PushState(player)
 	return true
 end
 

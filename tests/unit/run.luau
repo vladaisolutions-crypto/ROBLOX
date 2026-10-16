@@ -190,16 +190,22 @@ test("mutation chances leave room for no mutation", function()
 end)
 
 test("slot math fits the plot layout", function()
-	eq(Economy.MaxSlots(0, false), 8)
-	eq(Economy.MaxSlots(5, false), 18)
-	eq(Economy.MaxSlots(50, true), Economy.AbsoluteMaxSlots)
+	eq(Economy.MaxSlots(0, false), 10)
+	eq(Economy.MaxSlots(5, false), 20)
+	eq(Economy.MaxSlots(0, false, 3), 13)
+	eq(Economy.MaxSlots(0, false, 99), 10 + Economy.BuySlotsMax)
+	assert(Economy.SlotPrice(1) > Economy.SlotPrice(0), "base expansions get pricier")
+	eq(Economy.MaxSlots(50, true, 99), Economy.AbsoluteMaxSlots)
 	-- WorldService lays pedestals out in 4 rows.
-	assert(Economy.AbsoluteMaxSlots <= World.PedestalColumns * 4, "more slots than pedestal rows")
+	assert(Economy.AbsoluteMaxSlots <= World.PedestalColumns * World.PedestalRows, "more slots than pedestal rows")
+	-- The back row of pedestals fits inside the base.
+	local backZ = World.PlotDepth / 2 - 21 - (World.PedestalRows - 1) * World.PedestalSpacingZ
+	assert(backZ - 3 > -World.PlotDepth / 2, "back pedestal row sticks out of the base")
 end)
 
 test("rebirth costs", function()
-	eq(Economy.RebirthCost(0), 2e6)
-	eq(Economy.RebirthCost(1), 16e6)
+	eq(Economy.RebirthCost(0), Economy.RebirthBaseCost)
+	eq(Economy.RebirthCost(1), Economy.RebirthBaseCost * Economy.RebirthCostGrowth)
 end)
 
 test("monetization config is consistent", function()
