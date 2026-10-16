@@ -19,7 +19,7 @@ local BODY = Vector3.new(3, 2.4, 3)
 local SHAPES: { [string]: Vector3 } = {
 	Round = Vector3.one,
 	Tall = Vector3.new(0.88, 1.28, 0.88),
-	Flat = Vector3.new(1.22, 0.72, 1.22),
+	Flat = Vector3.new(1.15, 0.82, 1.15),
 	Chunky = Vector3.new(1.15, 0.95, 1.15),
 	Drop = Vector3.one,
 }

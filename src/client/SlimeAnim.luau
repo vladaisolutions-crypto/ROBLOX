@@ -15,6 +15,8 @@
 local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
 
+local World = require(game:GetService("ReplicatedStorage").Shared.Config.World)
+
 local SlimeAnim = {}
 
 local RANGE = 110 -- studs from the camera; farther slimes stay still
@@ -30,6 +32,7 @@ type State = {
 	HopAt: number,
 	NextBlink: number,
 	BlinkAt: number,
+	Posed: boolean, -- not at rest: put back to rest when it leaves range
 	Rng: Random,
 }
 
@@ -65,23 +68,55 @@ local function stateOf(body: BasePart, now: number): State?
 		HopAt = -math.huge,
 		NextBlink = now + rng:NextNumber(0.5, 4),
 		BlinkAt = -math.huge,
+		Posed = false,
 		Rng = rng,
 	}
 	states[body] = state
 	return state
 end
 
+-- Back to the resting pose (round, on the ground, eyes open), so a slime
+-- that leaves range mid-hop doesn't stay squashed or floating.
+local function rest(state: State)
+	state.Posed = false
+	state.Weld.C0 = CFrame.identity
+	if state.Mesh then
+		state.Mesh.Scale = Vector3.one
+	end
+	for _, mesh in state.Eyes do
+		mesh.Scale = Vector3.one
+	end
+end
+
+-- Belt slimes: the server tweens them, but its position only arrives a
+-- few times a second, so they stutter. The server also writes where and
+-- when each one started moving (BeltFrom/BeltAt); every client slides it
+-- smoothly from that itself.
+local function slideBelt()
+	local now = workspace:GetServerTimeNow()
+	local endX = World.BeltEndX - 2
+	for _, model in CollectionService:GetTagged("Slime") do
+		local at = model:GetAttribute("BeltAt")
+		local from = model:GetAttribute("BeltFrom")
+		local root = if model:IsA("Model") then model.PrimaryPart else nil
+		if type(at) == "number" and at > 0 and typeof(from) == "Vector3" and root then
+			local x = math.min(from.X + World.BeltSpeed * math.max(0, now - at), endX)
+			root.CFrame = CFrame.new(x, from.Y, from.Z) * root.CFrame.Rotation
+		end
+	end
+end
+
 -- Hop curve for p in [0, 1]: returns (height fraction of body, vertical scale).
 local function hop(p: number): (number, number)
 	if p < 0.18 then -- crouch
 		local q = p / 0.18
-		return 0, 1 - 0.22 * math.sin(q * math.pi / 2)
+		return 0, 1 - 0.14 * math.sin(q * math.pi / 2)
 	elseif p < 0.72 then -- airborne, stretched on the way up
 		local q = (p - 0.18) / 0.54
-		return math.sin(q * math.pi) * 0.55, 1.14 - 0.14 * q
+		return math.sin(q * math.pi) * 0.45, 1.1 - 0.1 * q
 	else -- land: squash, then a little wobble back to round
 		local q = (p - 0.72) / 0.28
-		return 0, 1 - 0.24 * math.exp(-4 * q) * math.cos(q * math.pi * 2.5)
+		return 0, 1 - 0.15 * math.exp(-4 * q) * math.cos(q * math.pi * 2.5)
 	end
 end
 
@@ -106,7 +141,7 @@ local function animate(body: BasePart, state: State, now: number)
 			lift = h * height
 			tilt = CFrame.Angles(-math.sin(p * math.pi) * 0.12, 0, 0)
 		else
-			stretch = 1 + math.sin(now * 3.2 + state.Seed) * 0.045
+			stretch = 1 + math.sin(now * 3.2 + state.Seed) * 0.035
 		end
 	end
 
@@ -116,6 +151,7 @@ local function animate(body: BasePart, state: State, now: number)
 		state.Mesh.Scale = Vector3.new(wide, stretch, wide)
 	end
 	state.Weld.C0 = CFrame.new(0, lift - (1 - stretch) * height / 2, 0) * tilt
+	state.Posed = true
 
 	if now >= state.NextBlink then
 		state.BlinkAt = now
@@ -139,11 +175,19 @@ function SlimeAnim.Start()
 		end
 		local now = os.clock() - t0
 		local eye = camera.CFrame.Position
+		slideBelt()
 		for _, body in CollectionService:GetTagged("SlimeBody") do
-			if body:IsA("BasePart") and (body.Position - eye).Magnitude < RANGE then
-				local state = stateOf(body, now)
-				if state then
-					animate(body, state, now)
+			if body:IsA("BasePart") then
+				if (body.Position - eye).Magnitude < RANGE then
+					local state = stateOf(body, now)
+					if state then
+						animate(body, state, now)
+					end
+				else
+					local state = states[body]
+					if state and state.Posed then
+						rest(state)
+					end
 				end
 			end
 		end

@@ -94,9 +94,22 @@ local function rollMutation(): string
 	return ""
 end
 
+-- Clients slide belt slimes themselves from where and when they started
+-- moving (see client SlimeAnim); BeltAt = 0 means stopped.
+local function setBeltMotion(entry: BeltSlime, moving: boolean)
+	local root = entry.Model.PrimaryPart
+	if moving and root then
+		entry.Model:SetAttribute("BeltFrom", root.Position)
+		entry.Model:SetAttribute("BeltAt", workspace:GetServerTimeNow())
+	else
+		entry.Model:SetAttribute("BeltAt", 0)
+	end
+end
+
 local function removeFromBelt(entry: BeltSlime)
 	entry.Gone = true
 	entry.Tween:Cancel()
+	setBeltMotion(entry, false)
 	local index = table.find(belt, entry)
 	if index then
 		table.remove(belt, index)
@@ -107,6 +120,7 @@ local function releaseReservation(entry: BeltSlime)
 	entry.ReservedBy = nil
 	if not entry.Gone then
 		entry.Tween:Play()
+		setBeltMotion(entry, true)
 	end
 end
 
@@ -252,6 +266,7 @@ local function startRobuxPurchase(player: Player, entry: BeltSlime)
 	end
 	entry.ReservedBy = player
 	entry.Tween:Pause()
+	setBeltMotion(entry, false)
 	pendingRobux[player] = {
 		Entry = entry,
 		SlimeId = entry.SlimeId,
@@ -342,6 +357,7 @@ local function spawnSlime(forcedRarity: string?, startX: number?)
 		end
 	end)
 	tween:Play()
+	setBeltMotion(entry, true)
 
 	if rarity.Announce then
 		local prefix = if rarity.Order >= 7
